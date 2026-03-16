@@ -30,12 +30,12 @@ public class CategoryService {
 
     @Cacheable(value = "categories")
     public List<CategoryDto> findAll() {
-        return categoryMapper.toDtoList(categoryRepository.findAllByActiveTrue());
+        return categoryMapper.toDtoList(categoryRepository.findAll());
     }
 
     @Cacheable(value = "categoriesByLanguage", key = "#languageId")
     public List<CategoryDto> findByLanguage(Long languageId) {
-        return categoryMapper.toDtoList(categoryRepository.findAllByLanguageIdAndActiveTrue(languageId));
+        return categoryMapper.toDtoList(categoryRepository.findAllByLanguageId(languageId));
     }
 
     public CategoryDto findById(Long id) {
@@ -52,7 +52,6 @@ public class CategoryService {
         }
         Category category = categoryMapper.toEntity(request);
         category.setLanguage(language);
-        category.setActive(true);
         return categoryMapper.toDto(categoryRepository.save(category));
     }
 
@@ -70,10 +69,9 @@ public class CategoryService {
     @Transactional
     @CacheEvict(value = {"categories", "categoriesByLanguage"}, allEntries = true)
     public void delete(Long id) {
-        Category category = getCategoryOrThrow(id);
-        category.setActive(false);
-        categoryRepository.save(category);
-        log.info("Soft-deleted category with id: {}", id);
+        getCategoryOrThrow(id);
+        categoryRepository.deleteById(id);
+        log.info("Deleted category with id: {}", id);
     }
 
     private Category getCategoryOrThrow(Long id) {

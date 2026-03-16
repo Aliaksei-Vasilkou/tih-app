@@ -18,9 +18,6 @@
                              foreignKeyName="fk_categories_language"
                              references="languages(id)"/>
             </column>
-            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
-                <constraints nullable="false"/>
-            </column>
             <column name="created_at" type="TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
             <column name="created_by" type="VARCHAR(100)"/>
@@ -33,9 +30,6 @@
 
         <createIndex tableName="categories" indexName="idx_categories_language_id">
             <column name="language_id"/>
-        </createIndex>
-        <createIndex tableName="categories" indexName="idx_categories_active">
-            <column name="active"/>
         </createIndex>
     </changeSet>
 

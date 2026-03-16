@@ -15,7 +15,6 @@ public class LanguageDto {
     private Long id;
     private String name;
     private String code;
-    private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;

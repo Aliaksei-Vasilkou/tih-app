@@ -41,13 +41,13 @@ public class QuestionService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Question> result;
         if (languageId != null && categoryId != null) {
-            result = questionRepository.findAllByLanguageIdAndCategoryIdAndActiveTrue(languageId, categoryId, pageable);
+            result = questionRepository.findAllByLanguageIdAndCategoryId(languageId, categoryId, pageable);
         } else if (languageId != null) {
-            result = questionRepository.findAllByLanguageIdAndActiveTrue(languageId, pageable);
+            result = questionRepository.findAllByLanguageId(languageId, pageable);
         } else if (categoryId != null) {
-            result = questionRepository.findAllByCategoryIdAndActiveTrue(categoryId, pageable);
+            result = questionRepository.findAllByCategoryId(categoryId, pageable);
         } else {
-            result = questionRepository.findAllByActiveTrue(pageable);
+            result = questionRepository.findAll(pageable);
         }
         return toPageResponse(result);
     }
@@ -89,7 +89,6 @@ public class QuestionService {
         Question question = questionMapper.toEntity(request);
         question.setLanguage(language);
         question.setCategory(category);
-        question.setActive(true);
         return questionMapper.toDto(questionRepository.save(question));
     }
 
@@ -110,15 +109,13 @@ public class QuestionService {
     @Transactional
     @CacheEvict(value = "questions", key = "#id")
     public void delete(Long id) {
-        Question question = getQuestionOrThrow(id);
-        question.setActive(false);
-        questionRepository.save(question);
-        log.info("Soft-deleted question with id: {}", id);
+        getQuestionOrThrow(id);
+        questionRepository.deleteById(id);
+        log.info("Deleted question with id: {}", id);
     }
 
     private Question getQuestionOrThrow(Long id) {
         return questionRepository.findById(id)
-                .filter(Question::isActive)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", id));
     }
 

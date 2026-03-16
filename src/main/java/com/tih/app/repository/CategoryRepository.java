@@ -10,9 +10,7 @@ import java.util.Optional;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    List<Category> findAllByActiveTrue();
-
-    List<Category> findAllByLanguageIdAndActiveTrue(Long languageId);
+    List<Category> findAllByLanguageId(Long languageId);
 
     Optional<Category> findByNameAndLanguageId(String name, Long languageId);
 

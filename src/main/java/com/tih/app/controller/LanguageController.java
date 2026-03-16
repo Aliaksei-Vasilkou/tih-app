@@ -47,7 +47,7 @@ public class LanguageController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Soft-delete a language")
+    @Operation(summary = "Delete a language")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         languageService.delete(id);
         return ResponseEntity.noContent().build();

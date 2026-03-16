@@ -110,7 +110,7 @@ public class BatchUploadService {
             }
         }
 
-        Optional<Language> languageOpt = languageRepository.findByCodeAndActiveTrue(item.getLanguageCode());
+        Optional<Language> languageOpt = languageRepository.findByCode(item.getLanguageCode());
         if (languageOpt.isEmpty()) {
             throw new IllegalArgumentException("Language not found with code: " + item.getLanguageCode());
         }
@@ -129,7 +129,6 @@ public class BatchUploadService {
                 .answerContent(item.getAnswerContent())
                 .language(language)
                 .category(categoryOpt.get())
-                .active(true)
                 .build();
 
         questionRepository.save(question);

@@ -1,6 +1,6 @@
 # Tech Interview Helper — Backend Service
 
-A Spring Boot REST API that manages interview questions organised by programming language and category. It supports full-text search, audit history, bulk data import via JSON batch upload, and exposes an OpenAPI/Swagger UI for easy exploration.
+A Spring Boot REST API that manages interview questions organised by programming language and category. It supports full-text search, bulk data import via JSON batch upload, and exposes an OpenAPI/Swagger UI for easy exploration.
 
 ---
 
@@ -11,6 +11,7 @@ A Spring Boot REST API that manages interview questions organised by programming
 - [Project Structure](#project-structure)
 - [Requirements](#requirements)
 - [Running with Docker (recommended)](#running-with-docker-recommended)
+- [Rebuilding & Redeploying with Docker](#rebuilding--redeploying-with-docker)
 - [Running Locally (without Docker)](#running-locally-without-docker)
 - [Environment Variables](#environment-variables)
 - [API Documentation](#api-documentation)
@@ -24,7 +25,6 @@ A Spring Boot REST API that manages interview questions organised by programming
 |---|---|
 | Question management | CRUD for questions grouped by language & category |
 | Full-text search | PostgreSQL FTS index on question content |
-| Audit history | Hibernate Envers tracks every change with revision info |
 | Batch import | Upload a JSON file to seed multiple questions at once |
 | Caching | Caffeine in-memory cache for frequently read data |
 | Schema migrations | Liquibase manages all DDL changes |
@@ -39,9 +39,7 @@ A Spring Boot REST API that manages interview questions organised by programming
 | Framework | Spring Boot 3.3.5 |
 | Persistence | Spring Data JPA + Hibernate + PostgreSQL 16 |
 | Migrations | Liquibase |
-| Audit | Hibernate Envers |
 | Cache | Caffeine |
-| Batch | Spring Batch |
 | API Docs | SpringDoc OpenAPI (Swagger UI) |
 | Build | Maven 3.9 |
 | Containerisation | Docker + Docker Compose |
@@ -55,8 +53,8 @@ src/
 ├── main/
 │   ├── java/com/tih/app/
 │   │   ├── TihApp.java               # Entry point
-│   │   ├── batch/                    # Spring Batch jobs (bulk import)
-│   │   ├── config/                   # App configuration (cache, audit, OpenAPI, web)
+│   │   ├── batch/                    # Bulk import logic
+│   │   ├── config/                   # App configuration (cache, OpenAPI, web)
 │   │   ├── controller/               # REST controllers
 │   │   ├── dto/                      # Request / response DTOs
 │   │   ├── exception/                # Global exception handling
@@ -121,6 +119,67 @@ To stop while **keeping data**:
 ```bash
 docker-compose down
 ```
+
+---
+
+## Rebuilding & Redeploying with Docker
+
+Use these workflows whenever you change source code, dependencies, or configuration and need to push the update into the running container.
+
+### Rebuild and restart the app only (most common)
+
+Stops the `tih-app` container, rebuilds its image from the current source, and starts it again — PostgreSQL is left untouched.
+
+```bash
+docker-compose up -d --build tih-app
+```
+
+### Force a clean rebuild (no Docker layer cache)
+
+Useful when you change the `pom.xml`, `Dockerfile`, or suspect a stale cache layer.
+
+```bash
+docker-compose build --no-cache tih-app
+docker-compose up -d tih-app
+```
+
+### Rebuild everything (app + all services)
+
+```bash
+docker-compose up -d --build
+```
+
+### Restart the app container without rebuilding
+
+Picks up changes to environment variables in `docker-compose.yml` but does **not** recompile the code.
+
+```bash
+docker-compose restart tih-app
+```
+
+### Full reset (wipe DB and start fresh)
+
+> ⚠️ This destroys all data in the `postgres_data` volume.
+
+```bash
+docker-compose down -v
+docker-compose up -d --build
+```
+
+### Check the app is healthy after redeployment
+
+```bash
+# Watch container status
+docker-compose ps
+
+# Tail logs until the app is ready
+docker-compose logs -f tih-app
+
+# Quick health check
+curl http://localhost:8080/actuator/health
+```
+
+> Liquibase runs automatically on every startup and applies any pending migrations before the app begins accepting traffic.
 
 ---
 

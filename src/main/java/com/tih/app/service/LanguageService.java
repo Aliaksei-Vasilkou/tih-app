@@ -27,8 +27,8 @@ public class LanguageService {
 
     @Cacheable("languages")
     public List<LanguageDto> findAll() {
-        log.debug("Fetching all active languages");
-        return languageMapper.toDtoList(languageRepository.findAllByActiveTrue());
+        log.debug("Fetching all languages");
+        return languageMapper.toDtoList(languageRepository.findAll());
     }
 
     public LanguageDto findById(Long id) {
@@ -45,7 +45,6 @@ public class LanguageService {
             throw new DuplicateResourceException("Language", "name", request.getName());
         }
         Language language = languageMapper.toEntity(request);
-        language.setActive(true);
         return languageMapper.toDto(languageRepository.save(language));
     }
 
@@ -60,10 +59,9 @@ public class LanguageService {
     @Transactional
     @CacheEvict(value = "languages", allEntries = true)
     public void delete(Long id) {
-        Language language = getLanguageOrThrow(id);
-        language.setActive(false);
-        languageRepository.save(language);
-        log.info("Soft-deleted language with id: {}", id);
+        getLanguageOrThrow(id);
+        languageRepository.deleteById(id);
+        log.info("Deleted language with id: {}", id);
     }
 
     private Language getLanguageOrThrow(Long id) {

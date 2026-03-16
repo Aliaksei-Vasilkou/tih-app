@@ -18,15 +18,14 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     Optional<Question> findByExternalId(UUID externalId);
 
     /**
-     * Fetches all active questions for export, eagerly joining language and category
+     * Fetches all questions for export, eagerly joining language and category
      * to avoid N+1. Both filter params are optional (pass null to skip the filter).
      */
     @Query("""
             SELECT q FROM Question q
             JOIN FETCH q.language l
             JOIN FETCH q.category c
-            WHERE q.active = true
-              AND (:languageCode IS NULL OR l.code = :languageCode)
+            WHERE (:languageCode IS NULL OR l.code = :languageCode)
               AND (:categoryName IS NULL OR c.name = :categoryName)
             ORDER BY l.code, c.name, q.id
             """)
@@ -34,13 +33,11 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
             @Param("languageCode") String languageCode,
             @Param("categoryName") String categoryName);
 
-    Page<Question> findAllByActiveTrue(Pageable pageable);
+    Page<Question> findAllByLanguageIdAndCategoryId(Long languageId, Long categoryId, Pageable pageable);
 
-    Page<Question> findAllByLanguageIdAndActiveTrue(Long languageId, Pageable pageable);
+    Page<Question> findAllByLanguageId(Long languageId, Pageable pageable);
 
-    Page<Question> findAllByCategoryIdAndActiveTrue(Long categoryId, Pageable pageable);
-
-    Page<Question> findAllByLanguageIdAndCategoryIdAndActiveTrue(Long languageId, Long categoryId, Pageable pageable);
+    Page<Question> findAllByCategoryId(Long categoryId, Pageable pageable);
 
     /**
      * Full-text search using PostgreSQL tsvector.
@@ -48,16 +45,14 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
      */
     @Query(value = """
             SELECT q.* FROM questions q
-            WHERE q.active = true
-              AND q.search_vector @@ plainto_tsquery('english', :query)
+            WHERE q.search_vector @@ plainto_tsquery('english', :query)
               AND (:languageId IS NULL OR q.language_id = :languageId)
               AND (:categoryId IS NULL OR q.category_id = :categoryId)
             ORDER BY ts_rank(q.search_vector, plainto_tsquery('english', :query)) DESC
             """,
            countQuery = """
             SELECT count(*) FROM questions q
-            WHERE q.active = true
-              AND q.search_vector @@ plainto_tsquery('english', :query)
+            WHERE q.search_vector @@ plainto_tsquery('english', :query)
               AND (:languageId IS NULL OR q.language_id = :languageId)
               AND (:categoryId IS NULL OR q.category_id = :categoryId)
             """,
@@ -73,8 +68,7 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
      */
     @Query("""
             SELECT q FROM Question q
-            WHERE q.active = true
-              AND (LOWER(q.questionText) LIKE LOWER(CONCAT('%', :query, '%'))
+            WHERE (LOWER(q.questionText) LIKE LOWER(CONCAT('%', :query, '%'))
                    OR LOWER(q.answerContent) LIKE LOWER(CONCAT('%', :query, '%')))
               AND (:languageId IS NULL OR q.language.id = :languageId)
               AND (:categoryId IS NULL OR q.category.id = :categoryId)

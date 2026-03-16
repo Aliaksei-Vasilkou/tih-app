@@ -20,7 +20,6 @@ public class QuestionDto {
     private String languageCode;
     private Long categoryId;
     private String categoryName;
-    private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;

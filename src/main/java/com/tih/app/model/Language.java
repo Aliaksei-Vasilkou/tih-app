@@ -2,14 +2,12 @@ package com.tih.app.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.envers.Audited;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "languages")
-@Audited
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,10 +24,6 @@ public class Language extends BaseAuditEntity {
 
     @Column(nullable = false, unique = true, length = 50)
     private String code;
-
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean active = true;
 
     @OneToMany(mappedBy = "language", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default

@@ -16,9 +16,6 @@
             <column name="code" type="VARCHAR(50)">
                 <constraints nullable="false" unique="true"/>
             </column>
-            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
-                <constraints nullable="false"/>
-            </column>
             <column name="created_at" type="TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
             <column name="created_by" type="VARCHAR(100)"/>
@@ -27,9 +24,6 @@
 
         <createIndex tableName="languages" indexName="idx_languages_code">
             <column name="code"/>
-        </createIndex>
-        <createIndex tableName="languages" indexName="idx_languages_active">
-            <column name="active"/>
         </createIndex>
     </changeSet>
 

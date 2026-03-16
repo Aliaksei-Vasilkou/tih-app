@@ -17,7 +17,6 @@ public class CategoryDto {
     private Long languageId;
     private String languageName;
     private String languageCode;
-    private boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
