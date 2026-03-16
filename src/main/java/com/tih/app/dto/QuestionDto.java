@@ -23,4 +23,6 @@ public class QuestionDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String createdBy;
+    /** Relevance score from Elasticsearch — only populated for search results, null otherwise. */
+    private Float relevanceScore;
 }

@@ -36,6 +36,7 @@ public class BatchUploadService {
     private final CategoryRepository categoryRepository;
     private final ObjectMapper objectMapper;
     private final Validator validator;
+    private final QuestionIndexService questionIndexService;
 
     // ------------------------------------------------------------------ import
 
@@ -131,7 +132,8 @@ public class BatchUploadService {
                 .category(categoryOpt.get())
                 .build();
 
-        questionRepository.save(question);
+        Question saved = questionRepository.save(question);
+        questionIndexService.index(saved);
         return ItemStatus.SAVED;
     }
 

@@ -36,6 +36,8 @@ public class QuestionService {
     private final LanguageRepository languageRepository;
     private final CategoryRepository categoryRepository;
     private final QuestionMapper questionMapper;
+    private final QuestionIndexService questionIndexService;
+    private final QuestionSearchService questionSearchService;
 
     public PageResponse<QuestionDto> findAll(Long languageId, Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
@@ -66,17 +68,14 @@ public class QuestionService {
                     searchRequest.getPage(), searchRequest.getSize());
         }
 
-        Page<Question> result;
-        if (query.trim().length() >= MIN_FTS_QUERY_LENGTH) {
-            log.debug("Using FTS search for query: {}", query);
-            result = questionRepository.searchByFullText(
+        try {
+            return questionSearchService.search(
                     query.trim(), searchRequest.getLanguageId(), searchRequest.getCategoryId(), pageable);
-        } else {
-            log.debug("Using ILIKE search for short query: {}", query);
-            result = questionRepository.searchByKeyword(
-                    query.trim(), searchRequest.getLanguageId(), searchRequest.getCategoryId(), pageable);
+        } catch (Exception e) {
+            log.warn("Elasticsearch search unavailable ({}), falling back to PostgreSQL FTS", e.getMessage());
+            return fallbackSearch(query.trim(), searchRequest.getLanguageId(),
+                    searchRequest.getCategoryId(), pageable);
         }
-        return toPageResponse(result);
     }
 
     @Transactional
@@ -89,7 +88,9 @@ public class QuestionService {
         Question question = questionMapper.toEntity(request);
         question.setLanguage(language);
         question.setCategory(category);
-        return questionMapper.toDto(questionRepository.save(question));
+        Question saved = questionRepository.save(question);
+        questionIndexService.index(saved);
+        return questionMapper.toDto(saved);
     }
 
     @Transactional
@@ -103,7 +104,9 @@ public class QuestionService {
         questionMapper.updateEntity(request, question);
         question.setLanguage(language);
         question.setCategory(category);
-        return questionMapper.toDto(questionRepository.save(question));
+        Question saved = questionRepository.save(question);
+        questionIndexService.index(saved);
+        return questionMapper.toDto(saved);
     }
 
     @Transactional
@@ -111,7 +114,20 @@ public class QuestionService {
     public void delete(Long id) {
         getQuestionOrThrow(id);
         questionRepository.deleteById(id);
+        questionIndexService.delete(id);
         log.info("Deleted question with id: {}", id);
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    private PageResponse<QuestionDto> fallbackSearch(String query, Long languageId, Long categoryId, Pageable pageable) {
+        Page<Question> result;
+        if (query.length() >= MIN_FTS_QUERY_LENGTH) {
+            result = questionRepository.searchByFullText(query, languageId, categoryId, pageable);
+        } else {
+            result = questionRepository.searchByKeyword(query, languageId, categoryId, pageable);
+        }
+        return toPageResponse(result);
     }
 
     private Question getQuestionOrThrow(Long id) {

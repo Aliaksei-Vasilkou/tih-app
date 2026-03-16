@@ -18,6 +18,26 @@ services:
       timeout: 5s
       retries: 5
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: tih-elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
   tih-app:
     build:
       context: .
@@ -27,6 +47,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -34,6 +56,8 @@ services:
       DB_USER: tih_user
       DB_PASSWORD: tih_password
       SERVER_PORT: 8080
+      ES_HOST: elasticsearch
+      ES_PORT: 9200
     ports:
       - "8080:8080"
     healthcheck:
@@ -45,4 +69,6 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  elasticsearch_data:
     driver: local
