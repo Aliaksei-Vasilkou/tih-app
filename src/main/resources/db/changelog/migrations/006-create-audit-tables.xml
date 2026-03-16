@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Hibernate Envers audit tables -->
+    <changeSet id="006-create-audit-tables" author="tih">
+
+        <!-- Revision info table -->
+        <createSequence sequenceName="revinfo_seq" startValue="1" incrementBy="50"/>
+
+        <createTable tableName="revinfo">
+            <column name="rev" type="INTEGER">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="revtstmp" type="BIGINT"/>
+        </createTable>
+
+        <!-- languages_aud -->
+        <createTable tableName="languages_aud">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rev" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revtype" type="SMALLINT"/>
+            <column name="name" type="VARCHAR(100)"/>
+            <column name="code" type="VARCHAR(50)"/>
+            <column name="active" type="BOOLEAN"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="last_modified_by" type="VARCHAR(100)"/>
+        </createTable>
+
+        <addPrimaryKey tableName="languages_aud" columnNames="id, rev" constraintName="languages_aud_pkey"/>
+        <addForeignKeyConstraint baseTableName="languages_aud" baseColumnNames="rev"
+                                 referencedTableName="revinfo" referencedColumnNames="rev"
+                                 constraintName="fk_languages_aud_rev"/>
+
+        <!-- categories_aud -->
+        <createTable tableName="categories_aud">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rev" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revtype" type="SMALLINT"/>
+            <column name="name" type="VARCHAR(100)"/>
+            <column name="language_id" type="BIGINT"/>
+            <column name="active" type="BOOLEAN"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="last_modified_by" type="VARCHAR(100)"/>
+        </createTable>
+
+        <addPrimaryKey tableName="categories_aud" columnNames="id, rev" constraintName="categories_aud_pkey"/>
+        <addForeignKeyConstraint baseTableName="categories_aud" baseColumnNames="rev"
+                                 referencedTableName="revinfo" referencedColumnNames="rev"
+                                 constraintName="fk_categories_aud_rev"/>
+
+        <!-- questions_aud (search_vector is @NotAudited - excluded) -->
+        <createTable tableName="questions_aud">
+            <column name="id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rev" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revtype" type="SMALLINT"/>
+            <column name="question_text" type="TEXT"/>
+            <column name="answer_content" type="TEXT"/>
+            <column name="language_id" type="BIGINT"/>
+            <column name="category_id" type="BIGINT"/>
+            <column name="active" type="BOOLEAN"/>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(100)"/>
+            <column name="last_modified_by" type="VARCHAR(100)"/>
+        </createTable>
+
+        <addPrimaryKey tableName="questions_aud" columnNames="id, rev" constraintName="questions_aud_pkey"/>
+        <addForeignKeyConstraint baseTableName="questions_aud" baseColumnNames="rev"
+                                 referencedTableName="revinfo" referencedColumnNames="rev"
+                                 constraintName="fk_questions_aud_rev"/>
+
+        <rollback>
+            <dropTable tableName="questions_aud"/>
+            <dropTable tableName="categories_aud"/>
+            <dropTable tableName="languages_aud"/>
+            <dropTable tableName="revinfo"/>
+            <dropSequence sequenceName="revinfo_seq"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

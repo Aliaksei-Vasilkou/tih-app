@@ -1,0 +1,135 @@
+package com.tih.app.service;
+
+import com.tih.app.dto.PageResponse;
+import com.tih.app.dto.QuestionCreateRequest;
+import com.tih.app.dto.QuestionDto;
+import com.tih.app.dto.QuestionSearchRequest;
+import com.tih.app.exception.ResourceNotFoundException;
+import com.tih.app.mapper.QuestionMapper;
+import com.tih.app.model.Category;
+import com.tih.app.model.Language;
+import com.tih.app.model.Question;
+import com.tih.app.repository.CategoryRepository;
+import com.tih.app.repository.LanguageRepository;
+import com.tih.app.repository.QuestionRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional(readOnly = true)
+public class QuestionService {
+
+    private static final int MIN_FTS_QUERY_LENGTH = 3;
+
+    private final QuestionRepository questionRepository;
+    private final LanguageRepository languageRepository;
+    private final CategoryRepository categoryRepository;
+    private final QuestionMapper questionMapper;
+
+    public PageResponse<QuestionDto> findAll(Long languageId, Long categoryId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Question> result;
+        if (languageId != null && categoryId != null) {
+            result = questionRepository.findAllByLanguageIdAndCategoryIdAndActiveTrue(languageId, categoryId, pageable);
+        } else if (languageId != null) {
+            result = questionRepository.findAllByLanguageIdAndActiveTrue(languageId, pageable);
+        } else if (categoryId != null) {
+            result = questionRepository.findAllByCategoryIdAndActiveTrue(categoryId, pageable);
+        } else {
+            result = questionRepository.findAllByActiveTrue(pageable);
+        }
+        return toPageResponse(result);
+    }
+
+    @Cacheable(value = "questions", key = "#id")
+    public QuestionDto findById(Long id) {
+        return questionMapper.toDto(getQuestionOrThrow(id));
+    }
+
+    public PageResponse<QuestionDto> search(QuestionSearchRequest searchRequest) {
+        String query = searchRequest.getQuery();
+        Pageable pageable = PageRequest.of(searchRequest.getPage(), searchRequest.getSize());
+
+        if (!StringUtils.hasText(query)) {
+            return findAll(searchRequest.getLanguageId(), searchRequest.getCategoryId(),
+                    searchRequest.getPage(), searchRequest.getSize());
+        }
+
+        Page<Question> result;
+        if (query.trim().length() >= MIN_FTS_QUERY_LENGTH) {
+            log.debug("Using FTS search for query: {}", query);
+            result = questionRepository.searchByFullText(
+                    query.trim(), searchRequest.getLanguageId(), searchRequest.getCategoryId(), pageable);
+        } else {
+            log.debug("Using ILIKE search for short query: {}", query);
+            result = questionRepository.searchByKeyword(
+                    query.trim(), searchRequest.getLanguageId(), searchRequest.getCategoryId(), pageable);
+        }
+        return toPageResponse(result);
+    }
+
+    @Transactional
+    @CacheEvict(value = "questions", allEntries = true)
+    public QuestionDto create(QuestionCreateRequest request) {
+        Language language = languageRepository.findById(request.getLanguageId())
+                .orElseThrow(() -> new ResourceNotFoundException("Language", request.getLanguageId()));
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category", request.getCategoryId()));
+        Question question = questionMapper.toEntity(request);
+        question.setLanguage(language);
+        question.setCategory(category);
+        question.setActive(true);
+        return questionMapper.toDto(questionRepository.save(question));
+    }
+
+    @Transactional
+    @CacheEvict(value = "questions", key = "#id")
+    public QuestionDto update(Long id, QuestionCreateRequest request) {
+        Question question = getQuestionOrThrow(id);
+        Language language = languageRepository.findById(request.getLanguageId())
+                .orElseThrow(() -> new ResourceNotFoundException("Language", request.getLanguageId()));
+        Category category = categoryRepository.findById(request.getCategoryId())
+                .orElseThrow(() -> new ResourceNotFoundException("Category", request.getCategoryId()));
+        questionMapper.updateEntity(request, question);
+        question.setLanguage(language);
+        question.setCategory(category);
+        return questionMapper.toDto(questionRepository.save(question));
+    }
+
+    @Transactional
+    @CacheEvict(value = "questions", key = "#id")
+    public void delete(Long id) {
+        Question question = getQuestionOrThrow(id);
+        question.setActive(false);
+        questionRepository.save(question);
+        log.info("Soft-deleted question with id: {}", id);
+    }
+
+    private Question getQuestionOrThrow(Long id) {
+        return questionRepository.findById(id)
+                .filter(Question::isActive)
+                .orElseThrow(() -> new ResourceNotFoundException("Question", id));
+    }
+
+    private PageResponse<QuestionDto> toPageResponse(Page<Question> page) {
+        return PageResponse.<QuestionDto>builder()
+                .content(questionMapper.toDtoList(page.getContent()))
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+    }
+}

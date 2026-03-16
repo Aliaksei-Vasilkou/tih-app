@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="005-seed-initial-data" author="tih">
+
+        <!-- Languages -->
+        <insert tableName="languages">
+            <column name="name" value="Java"/>
+            <column name="code" value="java"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="languages">
+            <column name="name" value="TypeScript"/>
+            <column name="code" value="typescript"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="languages">
+            <column name="name" value="General"/>
+            <column name="code" value="general"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+
+        <!-- Categories for Java -->
+        <insert tableName="categories">
+            <column name="name" value="Core"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'java')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Multi-Threading"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'java')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Spring Framework"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'java')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Patterns"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'java')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+
+        <!-- Categories for TypeScript -->
+        <insert tableName="categories">
+            <column name="name" value="Core"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'typescript')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+
+        <!-- Categories for General -->
+        <insert tableName="categories">
+            <column name="name" value="Database"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Soft Skills"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+
+    </changeSet>
+
+</databaseChangeLog>
