@@ -11,5 +11,6 @@
     <include file="db/changelog/migrations/004-add-fts-index.xml"/>
     <include file="db/changelog/migrations/005-seed-initial-data.xml"/>
     <include file="db/changelog/migrations/006-create-audit-tables.xml"/>
+    <include file="db/changelog/migrations/007-add-external-id-to-questions.xml"/>
 
 </databaseChangeLog>

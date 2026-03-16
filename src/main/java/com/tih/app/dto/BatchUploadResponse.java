@@ -15,5 +15,7 @@ public class BatchUploadResponse {
     private int totalItems;
     private int successCount;
     private int failureCount;
+    private int skippedCount;
     private List<String> errors;
+    private List<String> skipped;
 }

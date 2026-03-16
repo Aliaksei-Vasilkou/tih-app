@@ -1,6 +1,5 @@
 package com.tih.app.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,23 +7,22 @@ import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
+/**
+ * DTO used for exporting question-answer records to JSON.
+ * It is a superset of {@link BatchUploadItem} so that exported files
+ * can be imported directly on another device without any modifications.
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BatchUploadItem {
+public class QuestionExportItem {
 
-    /** Present on records that were previously exported; used for deduplication on import. */
+    /** Stable portable identifier — used for deduplication on re-import. */
     private UUID externalId;
 
-    @NotBlank(message = "Question text is required")
     private String questionText;
-
     private String answerContent;
-
-    @NotBlank(message = "Language code is required")
     private String languageCode;
-
-    @NotBlank(message = "Category name is required")
     private String categoryName;
 }

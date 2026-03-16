@@ -8,8 +8,31 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
+
+    Optional<Question> findByExternalId(UUID externalId);
+
+    /**
+     * Fetches all active questions for export, eagerly joining language and category
+     * to avoid N+1. Both filter params are optional (pass null to skip the filter).
+     */
+    @Query("""
+            SELECT q FROM Question q
+            JOIN FETCH q.language l
+            JOIN FETCH q.category c
+            WHERE q.active = true
+              AND (:languageCode IS NULL OR l.code = :languageCode)
+              AND (:categoryName IS NULL OR c.name = :categoryName)
+            ORDER BY l.code, c.name, q.id
+            """)
+    List<Question> findAllForExport(
+            @Param("languageCode") String languageCode,
+            @Param("categoryName") String categoryName);
 
     Page<Question> findAllByActiveTrue(Pageable pageable);
 
