@@ -17,11 +17,12 @@ import java.time.LocalDateTime;
 /**
  * Elasticsearch document for full-text search over questions.
  * <p>
- * Field strategy:
- *   - questionText / answerContent each have two sub-fields:
- *       .main  — english_standard analyzer  (stemming + stopwords, used for scored matching)
- *       .ngram — ngram_analyzer            (3-4 char ngrams, used for partial / prefix matching)
- *   - Fuzzy matching is applied at query time (no extra field needed).
+ * Field strategy — questionText / answerContent each carry four sub-fields:
+ *   .main    — english_standard analyzer  (stem + stopwords)  primary relevance scoring
+ *   .ngram   — ngram_analyzer             (2-10 char n-grams)  internal substring matching
+ *   .fuzzy   — english_lowercase          (no stemming)        fuzzy / typo-tolerance at query time
+ *   .synonym — english_standard (index) / english_synonym (search)  synonym expansion at search time
+ *   .edge    — edge_ngram_analyzer (index) / english_lowercase (search)  prefix / autocomplete matching
  * </p>
  */
 @Document(indexName = "questions")
@@ -38,7 +39,7 @@ public class QuestionDocument {
     @Field(type = FieldType.Keyword)
     private String externalId;
 
-    // Main analyzed field + ngram sub-field for partial matching
+    // Main analyzed field + sub-fields for partial, fuzzy, synonym and prefix matching
     @MultiField(
             mainField = @Field(
                     type = FieldType.Text,
@@ -56,6 +57,18 @@ public class QuestionDocument {
                             suffix = "fuzzy",
                             type = FieldType.Text,
                             analyzer = "english_lowercase",
+                            searchAnalyzer = "english_lowercase"
+                    ),
+                    @InnerField(
+                            suffix = "synonym",
+                            type = FieldType.Text,
+                            analyzer = "english_standard",
+                            searchAnalyzer = "english_synonym"
+                    ),
+                    @InnerField(
+                            suffix = "edge",
+                            type = FieldType.Text,
+                            analyzer = "edge_ngram_analyzer",
                             searchAnalyzer = "english_lowercase"
                     )
             }
@@ -79,6 +92,18 @@ public class QuestionDocument {
                             suffix = "fuzzy",
                             type = FieldType.Text,
                             analyzer = "english_lowercase",
+                            searchAnalyzer = "english_lowercase"
+                    ),
+                    @InnerField(
+                            suffix = "synonym",
+                            type = FieldType.Text,
+                            analyzer = "english_standard",
+                            searchAnalyzer = "english_synonym"
+                    ),
+                    @InnerField(
+                            suffix = "edge",
+                            type = FieldType.Text,
+                            analyzer = "edge_ngram_analyzer",
                             searchAnalyzer = "english_lowercase"
                     )
             }
