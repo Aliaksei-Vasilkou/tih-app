@@ -101,6 +101,14 @@
             <column name="updated_at" valueDate="now()"/>
         </insert>
         <insert tableName="categories">
+            <column name="name" value="EngEx"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
             <column name="name" value="Soft Skills"/>
             <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
             <column name="created_by" value="system"/>
