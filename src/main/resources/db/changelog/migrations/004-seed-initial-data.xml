@@ -9,6 +9,14 @@
 
         <!-- Languages -->
         <insert tableName="languages">
+            <column name="name" value="General"/>
+            <column name="code" value="general"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="languages">
             <column name="name" value="Java"/>
             <column name="code" value="java"/>
             <column name="created_by" value="system"/>
@@ -16,9 +24,51 @@
             <column name="created_at" valueDate="now()"/>
             <column name="updated_at" valueDate="now()"/>
         </insert>
-        <insert tableName="languages">
-            <column name="name" value="General"/>
-            <column name="code" value="general"/>
+
+        <!-- Categories for General -->
+        <insert tableName="categories">
+            <column name="name" value="Database"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Kafka"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Networking"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Security"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="EngEx"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
+            <column name="created_by" value="system"/>
+            <column name="last_modified_by" value="system"/>
+            <column name="created_at" valueDate="now()"/>
+            <column name="updated_at" valueDate="now()"/>
+        </insert>
+        <insert tableName="categories">
+            <column name="name" value="Soft Skills"/>
+            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
             <column name="created_by" value="system"/>
             <column name="last_modified_by" value="system"/>
             <column name="created_at" valueDate="now()"/>
@@ -93,56 +143,6 @@
         <insert tableName="categories">
             <column name="name" value="EngEx"/>
             <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'java')"/>
-            <column name="created_by" value="system"/>
-            <column name="last_modified_by" value="system"/>
-            <column name="created_at" valueDate="now()"/>
-            <column name="updated_at" valueDate="now()"/>
-        </insert>
-
-        <!-- Categories for General -->
-        <insert tableName="categories">
-            <column name="name" value="Database"/>
-            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
-            <column name="created_by" value="system"/>
-            <column name="last_modified_by" value="system"/>
-            <column name="created_at" valueDate="now()"/>
-            <column name="updated_at" valueDate="now()"/>
-        </insert>
-        <insert tableName="categories">
-            <column name="name" value="Kafka"/>
-            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
-            <column name="created_by" value="system"/>
-            <column name="last_modified_by" value="system"/>
-            <column name="created_at" valueDate="now()"/>
-            <column name="updated_at" valueDate="now()"/>
-        </insert>
-        <insert tableName="categories">
-            <column name="name" value="Networking"/>
-            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
-            <column name="created_by" value="system"/>
-            <column name="last_modified_by" value="system"/>
-            <column name="created_at" valueDate="now()"/>
-            <column name="updated_at" valueDate="now()"/>
-        </insert>
-        <insert tableName="categories">
-            <column name="name" value="Security"/>
-            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
-            <column name="created_by" value="system"/>
-            <column name="last_modified_by" value="system"/>
-            <column name="created_at" valueDate="now()"/>
-            <column name="updated_at" valueDate="now()"/>
-        </insert>
-        <insert tableName="categories">
-            <column name="name" value="EngEx"/>
-            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
-            <column name="created_by" value="system"/>
-            <column name="last_modified_by" value="system"/>
-            <column name="created_at" valueDate="now()"/>
-            <column name="updated_at" valueDate="now()"/>
-        </insert>
-        <insert tableName="categories">
-            <column name="name" value="Soft Skills"/>
-            <column name="language_id" valueComputed="(SELECT id FROM languages WHERE code = 'general')"/>
             <column name="created_by" value="system"/>
             <column name="last_modified_by" value="system"/>
             <column name="created_at" valueDate="now()"/>

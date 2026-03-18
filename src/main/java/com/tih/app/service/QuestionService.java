@@ -37,6 +37,9 @@ public class QuestionService {
 
     private static final int MIN_FTS_QUERY_LENGTH = 3;
 
+    /** ID of the "General" language — always included alongside any selected language filter. */
+    private static final long GENERAL_LANGUAGE_ID = 1L;
+
     private final QuestionRepository questionRepository;
     private final LanguageRepository languageRepository;
     private final CategoryRepository categoryRepository;
@@ -47,11 +50,12 @@ public class QuestionService {
 
     public PageResponse<QuestionDto> findAll(Long languageId, Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        List<Long> languageIds = resolveLanguageIds(languageId);
         Page<Question> result;
-        if (languageId != null && categoryId != null) {
-            result = questionRepository.findAllByLanguageIdAndCategoryId(languageId, categoryId, pageable);
-        } else if (languageId != null) {
-            result = questionRepository.findAllByLanguageId(languageId, pageable);
+        if (languageIds != null && categoryId != null) {
+            result = questionRepository.findAllByLanguageIdInAndCategoryId(languageIds, categoryId, pageable);
+        } else if (languageIds != null) {
+            result = questionRepository.findAllByLanguageIdIn(languageIds, pageable);
         } else if (categoryId != null) {
             result = questionRepository.findAllByCategoryId(categoryId, pageable);
         } else {
@@ -129,12 +133,28 @@ public class QuestionService {
 
     // ------------------------------------------------------------------ helpers
 
+    /**
+     * Expands the selected language ID into a list that also includes General (ID=1),
+     * so questions tagged as General always surface alongside language-specific ones.
+     * Returns {@code null} when no language filter is requested (caller must treat null as "no filter").
+     */
+    private List<Long> resolveLanguageIds(Long languageId) {
+        if (languageId == null) return null;
+        if (languageId == GENERAL_LANGUAGE_ID) return List.of(GENERAL_LANGUAGE_ID);
+        return List.of(languageId, GENERAL_LANGUAGE_ID);
+    }
+
     private PageResponse<QuestionDto> fallbackSearch(String query, Long languageId, Long categoryId, Pageable pageable) {
+        List<Long> languageIds = resolveLanguageIds(languageId);
         Page<Question> result;
         if (query.length() >= MIN_FTS_QUERY_LENGTH) {
-            result = questionRepository.searchByFullText(query, languageId, categoryId, pageable);
+            result = languageIds != null
+                    ? questionRepository.searchByFullTextWithLanguageIds(query, languageIds, categoryId, pageable)
+                    : questionRepository.searchByFullText(query, null, categoryId, pageable);
         } else {
-            result = questionRepository.searchByKeyword(query, languageId, categoryId, pageable);
+            result = languageIds != null
+                    ? questionRepository.searchByKeywordWithLanguageIds(query, languageIds, categoryId, pageable)
+                    : questionRepository.searchByKeyword(query, null, categoryId, pageable);
         }
         return toPageResponse(result);
     }

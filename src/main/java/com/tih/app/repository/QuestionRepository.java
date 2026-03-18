@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +39,12 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     Page<Question> findAllByLanguageId(Long languageId, Pageable pageable);
 
+    /** Filters by a set of language IDs (used to include General + selected language). */
+    Page<Question> findAllByLanguageIdIn(Collection<Long> languageIds, Pageable pageable);
+
+    /** Filters by a set of language IDs AND a category (used to include General + selected language). */
+    Page<Question> findAllByLanguageIdInAndCategoryId(Collection<Long> languageIds, Long categoryId, Pageable pageable);
+
     Page<Question> findAllByCategoryId(Long categoryId, Pageable pageable);
 
     /**
@@ -65,6 +72,29 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
             Pageable pageable);
 
     /**
+     * Full-text search filtered by a set of language IDs (e.g. selected language + General).
+     */
+    @Query(value = """
+            SELECT q.* FROM questions q
+            WHERE q.search_vector @@ plainto_tsquery('english', :query)
+              AND q.language_id IN (:languageIds)
+              AND (:categoryId IS NULL OR q.category_id = :categoryId)
+            ORDER BY ts_rank(q.search_vector, plainto_tsquery('english', :query)) DESC
+            """,
+           countQuery = """
+            SELECT count(*) FROM questions q
+            WHERE q.search_vector @@ plainto_tsquery('english', :query)
+              AND q.language_id IN (:languageIds)
+              AND (:categoryId IS NULL OR q.category_id = :categoryId)
+            """,
+           nativeQuery = true)
+    Page<Question> searchByFullTextWithLanguageIds(
+            @Param("query") String query,
+            @Param("languageIds") Collection<Long> languageIds,
+            @Param("categoryId") Long categoryId,
+            Pageable pageable);
+
+    /**
      * Fallback ILIKE search when full-text search query is too short.
      */
     @Query("""
@@ -77,6 +107,22 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     Page<Question> searchByKeyword(
             @Param("query") String query,
             @Param("languageId") Long languageId,
+            @Param("categoryId") Long categoryId,
+            Pageable pageable);
+
+    /**
+     * Fallback ILIKE search filtered by a set of language IDs (e.g. selected language + General).
+     */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE (LOWER(q.questionText) LIKE LOWER(CONCAT('%', :query, '%'))
+                   OR LOWER(q.answerContent) LIKE LOWER(CONCAT('%', :query, '%')))
+              AND q.language.id IN (:languageIds)
+              AND (:categoryId IS NULL OR q.category.id = :categoryId)
+            """)
+    Page<Question> searchByKeywordWithLanguageIds(
+            @Param("query") String query,
+            @Param("languageIds") Collection<Long> languageIds,
             @Param("categoryId") Long categoryId,
             Pageable pageable);
 }

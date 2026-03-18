@@ -58,6 +58,9 @@ import java.util.List;
 @Slf4j
 public class QuestionSearchService {
 
+    /** ID of the "General" language — always included alongside any selected language filter. */
+    private static final long GENERAL_LANGUAGE_ID = 1L;
+
     private final ElasticsearchOperations elasticsearchOperations;
 
     public PageResponse<QuestionDto> search(String queryText, Long languageId, Long categoryId, Pageable pageable) {
@@ -163,8 +166,12 @@ public class QuestionSearchService {
 
                     // Zero-score filters
                     if (languageId != null) {
-                        b.filter(f -> f.term(t -> t
-                                .field("languageId").value(FieldValue.of(languageId))));
+                        List<FieldValue> languageValues = languageId == GENERAL_LANGUAGE_ID
+                                ? List.of(FieldValue.of(languageId))
+                                : List.of(FieldValue.of(languageId), FieldValue.of(GENERAL_LANGUAGE_ID));
+                        b.filter(f -> f.terms(t -> t
+                                .field("languageId")
+                                .terms(tv -> tv.value(languageValues))));
                     }
                     if (categoryId != null) {
                         b.filter(f -> f.term(t -> t
