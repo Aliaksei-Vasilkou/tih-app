@@ -9,9 +9,11 @@ import com.tih.app.mapper.QuestionMapper;
 import com.tih.app.model.Category;
 import com.tih.app.model.Language;
 import com.tih.app.model.Question;
+import com.tih.app.model.Tag;
 import com.tih.app.repository.CategoryRepository;
 import com.tih.app.repository.LanguageRepository;
 import com.tih.app.repository.QuestionRepository;
+import com.tih.app.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -24,6 +26,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -35,6 +40,7 @@ public class QuestionService {
     private final QuestionRepository questionRepository;
     private final LanguageRepository languageRepository;
     private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
     private final QuestionMapper questionMapper;
     private final QuestionIndexService questionIndexService;
     private final QuestionSearchService questionSearchService;
@@ -88,6 +94,7 @@ public class QuestionService {
         Question question = questionMapper.toEntity(request);
         question.setLanguage(language);
         question.setCategory(category);
+        question.setTags(resolveTags(request.getTagIds()));
         Question saved = questionRepository.save(question);
         questionIndexService.index(saved);
         return questionMapper.toDto(saved);
@@ -104,6 +111,8 @@ public class QuestionService {
         questionMapper.updateEntity(request, question);
         question.setLanguage(language);
         question.setCategory(category);
+        question.getTags().clear();
+        question.getTags().addAll(resolveTags(request.getTagIds()));
         Question saved = questionRepository.save(question);
         questionIndexService.index(saved);
         return questionMapper.toDto(saved);
@@ -133,6 +142,11 @@ public class QuestionService {
     private Question getQuestionOrThrow(Long id) {
         return questionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Question", id));
+    }
+
+    private List<Tag> resolveTags(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return new ArrayList<>();
+        return new ArrayList<>(tagRepository.findAllById(tagIds));
     }
 
     private PageResponse<QuestionDto> toPageResponse(Page<Question> page) {

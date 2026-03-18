@@ -9,5 +9,6 @@
     <include file="db/changelog/migrations/002-create-categories.xml"/>
     <include file="db/changelog/migrations/003-create-questions.xml"/>
     <include file="db/changelog/migrations/004-seed-initial-data.xml"/>
+    <include file="db/changelog/migrations/005-create-tags.xml"/>
 
 </databaseChangeLog>

@@ -18,13 +18,14 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     Optional<Question> findByExternalId(UUID externalId);
 
     /**
-     * Fetches all questions for export, eagerly joining language and category
+     * Fetches all questions for export, eagerly joining language, category and tags
      * to avoid N+1. Both filter params are optional (pass null to skip the filter).
      */
     @Query("""
-            SELECT q FROM Question q
+            SELECT DISTINCT q FROM Question q
             JOIN FETCH q.language l
             JOIN FETCH q.category c
+            LEFT JOIN FETCH q.tags
             WHERE (:languageCode IS NULL OR l.code = :languageCode)
               AND (:categoryName IS NULL OR c.name = :categoryName)
             ORDER BY l.code, c.name, q.id

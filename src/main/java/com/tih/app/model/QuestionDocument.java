@@ -13,6 +13,8 @@ import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Elasticsearch document for full-text search over questions.
@@ -124,4 +126,8 @@ public class QuestionDocument {
 
     @Field(type = FieldType.Keyword)
     private String categoryName;
+
+    @Field(type = FieldType.Keyword)
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
 }

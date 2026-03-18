@@ -2,11 +2,13 @@ package com.tih.app.service;
 
 import com.tih.app.model.Question;
 import com.tih.app.model.QuestionDocument;
+import com.tih.app.model.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -37,6 +39,9 @@ public class QuestionIndexService {
     }
 
     private QuestionDocument toDocument(Question q) {
+        List<String> tagNames = (q.getTags() != null)
+                ? q.getTags().stream().map(Tag::getName).sorted().toList()
+                : Collections.emptyList();
         return QuestionDocument.builder()
                 .id(String.valueOf(q.getId()))
                 .externalId(q.getExternalId() != null ? q.getExternalId().toString() : null)
@@ -47,6 +52,7 @@ public class QuestionIndexService {
                 .languageName(q.getLanguage() != null ? q.getLanguage().getName() : null)
                 .categoryId(q.getCategory() != null ? q.getCategory().getId() : null)
                 .categoryName(q.getCategory() != null ? q.getCategory().getName() : null)
+                .tags(tagNames)
                 .build();
     }
 }

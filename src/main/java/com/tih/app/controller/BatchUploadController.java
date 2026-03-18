@@ -2,7 +2,7 @@ package com.tih.app.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tih.app.dto.BatchUploadResponse;
-import com.tih.app.dto.QuestionExportItem;
+import com.tih.app.dto.QuestionTransferItem;
 import com.tih.app.service.BatchUploadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,7 +43,7 @@ public class BatchUploadController {
             @Parameter(description = "Filter by category name, e.g. 'Concurrency'")
             @RequestParam(required = false) String categoryName) throws Exception {
 
-        List<QuestionExportItem> items = batchUploadService.exportQuestions(languageCode, categoryName);
+        List<QuestionTransferItem> items = batchUploadService.exportQuestions(languageCode, categoryName);
         byte[] body = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(items);
 
         HttpHeaders headers = new HttpHeaders();

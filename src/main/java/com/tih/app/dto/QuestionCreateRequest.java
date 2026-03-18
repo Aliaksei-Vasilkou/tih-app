@@ -7,6 +7,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,4 +26,7 @@ public class QuestionCreateRequest {
 
     @NotNull(message = "Category ID is required")
     private Long categoryId;
+
+    /** Optional list of tag IDs to associate with this question (all must belong to the same language). */
+    private List<Long> tagIds = new ArrayList<>();
 }

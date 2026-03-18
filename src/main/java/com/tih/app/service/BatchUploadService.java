@@ -2,15 +2,16 @@ package com.tih.app.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tih.app.dto.BatchUploadItem;
 import com.tih.app.dto.BatchUploadResponse;
-import com.tih.app.dto.QuestionExportItem;
+import com.tih.app.dto.QuestionTransferItem;
 import com.tih.app.model.Category;
 import com.tih.app.model.Language;
 import com.tih.app.model.Question;
+import com.tih.app.model.Tag;
 import com.tih.app.repository.CategoryRepository;
 import com.tih.app.repository.LanguageRepository;
 import com.tih.app.repository.QuestionRepository;
+import com.tih.app.repository.TagRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class BatchUploadService {
     private final QuestionRepository questionRepository;
     private final LanguageRepository languageRepository;
     private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
     private final ObjectMapper objectMapper;
     private final Validator validator;
     private final QuestionIndexService questionIndexService;
@@ -42,10 +44,10 @@ public class BatchUploadService {
 
     @Transactional
     public BatchUploadResponse processUpload(MultipartFile file) {
-        List<BatchUploadItem> items;
+        List<QuestionTransferItem> items;
         try {
             items = objectMapper.readValue(file.getInputStream(),
-                    new TypeReference<List<BatchUploadItem>>() {});
+                    new TypeReference<List<QuestionTransferItem>>() {});
         } catch (Exception e) {
             log.error("Failed to parse upload file", e);
             return BatchUploadResponse.builder()
@@ -63,9 +65,9 @@ public class BatchUploadService {
         List<String> skippedMessages = new ArrayList<>();
 
         for (int i = 0; i < items.size(); i++) {
-            BatchUploadItem item = items.get(i);
+            QuestionTransferItem item = items.get(i);
             try {
-                Set<ConstraintViolation<BatchUploadItem>> violations = validator.validate(item);
+                Set<ConstraintViolation<QuestionTransferItem>> violations = validator.validate(item);
                 if (!violations.isEmpty()) {
                     String msg = "Item " + (i + 1) + ": " +
                             violations.stream().map(ConstraintViolation::getMessage)
@@ -99,37 +101,41 @@ public class BatchUploadService {
                 .build();
     }
 
-    private ItemStatus processItem(BatchUploadItem item, int index, List<String> skippedMessages) {
+    private ItemStatus processItem(QuestionTransferItem item, int index, List<String> skippedMessages) {
         // Deduplication check: if a UUID is supplied and already exists → skip
-        if (item.getExternalId() != null) {
-            Optional<Question> existing = questionRepository.findByExternalId(item.getExternalId());
+        if (item.getExtId() != null) {
+            Optional<Question> existing = questionRepository.findByExternalId(item.getExtId());
             if (existing.isPresent()) {
-                String msg = "Item " + index + ": skipped — externalId " + item.getExternalId() + " already exists";
+                String msg = "Item " + index + ": skipped — extId " + item.getExtId() + " already exists";
                 log.debug(msg);
                 skippedMessages.add(msg);
                 return ItemStatus.SKIPPED;
             }
         }
 
-        Optional<Language> languageOpt = languageRepository.findByCode(item.getLanguageCode());
+        Optional<Language> languageOpt = languageRepository.findByCode(item.getLanguage());
         if (languageOpt.isEmpty()) {
-            throw new IllegalArgumentException("Language not found with code: " + item.getLanguageCode());
+            throw new IllegalArgumentException("Language not found with code: " + item.getLanguage());
         }
         Language language = languageOpt.get();
 
         Optional<Category> categoryOpt = categoryRepository
-                .findByNameAndLanguageId(item.getCategoryName(), language.getId());
+                .findByNameAndLanguageId(item.getCategory(), language.getId());
         if (categoryOpt.isEmpty()) {
-            throw new IllegalArgumentException("Category '" + item.getCategoryName()
-                    + "' not found for language: " + item.getLanguageCode());
+            throw new IllegalArgumentException("Category '" + item.getCategory()
+                    + "' not found for language: " + item.getLanguage());
         }
 
+        // Resolve tags — auto-create any that don't exist for this language
+        List<Tag> tags = resolveOrCreateTags(item.getTags(), language);
+
         Question question = Question.builder()
-                .externalId(item.getExternalId())   // null → @PrePersist will generate one
-                .questionText(item.getQuestionText())
-                .answerContent(item.getAnswerContent())
+                .externalId(item.getExtId())   // null → @PrePersist will generate one
+                .questionText(item.getQuestion())
+                .answerContent(item.getAnswer())
                 .language(language)
                 .category(categoryOpt.get())
+                .tags(tags)
                 .build();
 
         Question saved = questionRepository.save(question);
@@ -137,10 +143,28 @@ public class BatchUploadService {
         return ItemStatus.SAVED;
     }
 
+    /**
+     * Resolves existing tags by name (case-insensitive) for the given language,
+     * and auto-creates any that are not found.
+     */
+    private List<Tag> resolveOrCreateTags(List<String> tagNames, Language language) {
+        if (tagNames == null || tagNames.isEmpty()) return new ArrayList<>();
+        List<Tag> result = new ArrayList<>();
+        for (String name : tagNames) {
+            if (name == null || name.isBlank()) continue;
+            String trimmed = name.trim();
+            Tag tag = tagRepository.findByNameIgnoreCaseAndLanguageId(trimmed, language.getId())
+                    .orElseGet(() -> tagRepository.save(
+                            Tag.builder().name(trimmed).language(language).build()));
+            result.add(tag);
+        }
+        return result;
+    }
+
     // ------------------------------------------------------------------ export
 
     @Transactional(readOnly = true)
-    public List<QuestionExportItem> exportQuestions(String languageCode, String categoryName) {
+    public List<QuestionTransferItem> exportQuestions(String languageCode, String categoryName) {
         List<Question> questions = questionRepository.findAllForExport(
                 languageCode != null && !languageCode.isBlank() ? languageCode : null,
                 categoryName != null && !categoryName.isBlank() ? categoryName : null);
@@ -149,12 +173,13 @@ public class BatchUploadService {
                 questions.size(), languageCode, categoryName);
 
         return questions.stream()
-                .map(q -> QuestionExportItem.builder()
-                        .externalId(q.getExternalId())
-                        .questionText(q.getQuestionText())
-                        .answerContent(q.getAnswerContent())
-                        .languageCode(q.getLanguage().getCode())
-                        .categoryName(q.getCategory().getName())
+                .map(q -> QuestionTransferItem.builder()
+                        .extId(q.getExternalId())
+                        .question(q.getQuestionText())
+                        .answer(q.getAnswerContent())
+                        .language(q.getLanguage().getCode())
+                        .category(q.getCategory().getName())
+                        .tags(q.getTags().stream().map(Tag::getName).sorted().toList())
                         .build())
                 .toList();
     }
