@@ -6,12 +6,12 @@ description: >
   services, mappers, DTOs, JPA entities, and Liquibase changesets.
   Always reads project instructions and constitution before writing code.
   Project-specific conventions take precedence over generic Java best practices.
-tools: [read, edit, search]
+tools: [execute, read, edit, search]
 handoffs:
-  - label: Generate Tests
+  - label: Create Tests
     agent: qa-engineer
-    prompt: "Write unit tests for the code just implemented: "
-    send: false
+    prompt: "Write unit tests for the code just implemented"
+    send: true
 ---
 
 ## User Input
@@ -39,6 +39,7 @@ Before writing any code, you MUST read:
 
 1. **`.github/copilot-instructions.md`** — architecture conventions, layer rules, caching, exception handling, ID strategy, MapStruct setup
 2. **`.specify/memory/constitution.md`** — technology stack constraints, development workflow, governance rules
+3. **`.github/instructions/code-style.instructions.md`** — mandatory Java code style: builder format, import style, logging, no decorative separator comments
 
 If a design document is referenced in the task input (e.g., `specs/<feature>/research.md`), read that too before writing code.
 
@@ -117,7 +118,7 @@ Before finalizing each file, verify:
 - [ ] DTO: uses builder pattern, no `Long id` exposure
 - [ ] Response: uses `UUID externalId` only for public identification
 - [ ] Exceptions: `ResourceNotFoundException` / `DuplicateResourceException` — no raw error strings from controllers
-- [ ] Logging: `@Slf4j`, no `System.out`
+- [ ] Logging: `@Slf4j` or `@Log4j2`, no `System.out`
 
 ---
 

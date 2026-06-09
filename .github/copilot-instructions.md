@@ -1,7 +1,7 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-specs/001-speckit-custom-agents/plan.md
+specs/001-improve-search-relevance/plan.md
 <!-- SPECKIT END -->
 
 # Tech Interview Helper — Agent Instructions
@@ -51,7 +51,7 @@ config/       →  App-wide beans (cache, OpenAPI, WebConfig, ElasticsearchIndex
 
 **API versioning**: All endpoints are under `/api/v1/`. New resource controllers follow `@RequestMapping("/api/v1/<resource>")`.
 
-**Logging**: `logging.level.com.tih=DEBUG` in dev. Use `@Slf4j` (Lombok) — no `System.out.println`.
+**Logging**: `logging.level.com.tih=DEBUG` in dev. Use `@Slf4j` or `@Log4j2` (Lombok) — no `System.out.println`.
 
 ## Question Content Generation
 

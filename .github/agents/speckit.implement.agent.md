@@ -1,14 +1,10 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 handoffs:
-  - label: Implement with Java Developer
-    agent: java-developer
-    prompt: "Implement the following task: "
-    send: false
   - label: Generate Tests
     agent: qa-engineer
-    prompt: "Write unit tests for: "
-    send: false
+    prompt: "Write unit tests for the new code implemented in the Core Development phase"
+    send: true
 ---
 
 ## User Input
@@ -91,6 +87,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 3. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
+   - **REQUIRED**: Read `.github/instructions/code-style.instructions.md` — all Java code produced must strictly follow these style rules
    - **IF EXISTS**: Read data-model.md for entities and relationships
    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
    - **IF EXISTS**: Read research.md for technical decisions and constraints
@@ -171,10 +168,12 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
 9. Completion validation:
-   - Verify all required tasks are completed
-   - Check that implemented features match the original specification
-   - Validate that tests pass and coverage meets requirements
-   - Confirm the implementation follows the technical plan
+   - **IMPORTANT** Verify all required tasks are completed
+   - **IMPORTANT** Check that implemented features match the original specification
+   - **IMPORTANT** Ensure project in buildable state with all tests passing
+   - **IMPORTANT** Ensure tests coverage meets requirements
+   - **IMPORTANT** Confirm the implementation follows the technical plan
+   - **IMPORTANT** Check if documentation updates are required and if so, ensure they are completed
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
 
@@ -219,5 +218,6 @@ Report final status with summary of completed work.
 
 - [ ] All tasks in tasks.md completed and marked `[X]`
 - [ ] Implementation validated against specification, plan, and test coverage
+- [ ] Project in buildable state with all tests passing
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with summary of completed work

@@ -6,12 +6,12 @@ description: >
   comparison table, a Recommendation, and a list of Open Questions.
   Use this agent when architectural decisions are needed — before any code is written.
   Does NOT write or modify code files.
-tools: [read, search]
+tools: [read, edit, search]
 handoffs:
   - label: Feed design into Plan
     agent: speckit.plan
-    prompt: "Continue planning with this design: "
-    send: false
+    prompt: "Continue planning with refined design"
+    send: true
 ---
 
 ## User Input
@@ -117,7 +117,7 @@ Write a structured Markdown document following this exact section order:
 If there is an active feature (`specs/*/` directory pinned in `.specify/feature.json`), save the document to:
 `specs/<feature-dir>/research.md`
 
-If no active feature, print the document directly to the chat.
+If no active feature, save the document to the repository root.
 
 ---
 

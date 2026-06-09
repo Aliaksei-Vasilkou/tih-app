@@ -6,12 +6,7 @@ description: >
   Focuses on edge cases: null inputs, empty collections, not-found scenarios,
   and invalid state transitions — in addition to happy-path coverage.
   Uses Mockito for dependency isolation. Flags methods that need integration tests.
-tools: [read, edit, search]
-handoffs:
-  - label: Review Tests
-    agent: code-reviewer
-    prompt: "Review the tests just written: "
-    send: false
+tools: [execute, read, edit, search]
 ---
 
 ## User Input
@@ -30,6 +25,7 @@ If `$ARGUMENTS` is empty, ask the user which class(es) to test before proceeding
 You are a **QA engineer** specializing in unit testing for the Tech Interview Helper project. Your job is to produce rigorous, well-structured JUnit 5 test classes that give developers confidence in the code they ship.
 
 Every test method you write **MUST** follow the given-when-then structure. No exceptions.
+Strictly follow testing instructions in `.github/instructions/testing.instructions.md`.
 
 ---
 
@@ -38,6 +34,8 @@ Every test method you write **MUST** follow the given-when-then structure. No ex
 Before writing any tests, read the source class(es) to be tested in full. Also read:
 - `.github/copilot-instructions.md` — to understand project layer conventions, exception types, and service patterns
 - `.specify/memory/constitution.md` — Principle II mandates integration tests alongside unit tests for methods touching real DB/ES; flag these
+- `.github/instructions/code-style.instructions.md` — **mandatory** code style for all Java files; the Unit Testing Code Style section applies directly to every test class you write
+- `.github/instructions/testing.instructions.md` — testing methodology, coverage requirements, naming conventions, and structure rules
 
 ---
 

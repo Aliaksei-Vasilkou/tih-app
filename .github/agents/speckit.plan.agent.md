@@ -1,17 +1,14 @@
 ---
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
 handoffs:
-  - label: Design with Architect
+  - label: Refine with Architect
     agent: software-architect
-    prompt: "Research and design approaches for: "
-    send: false
+    prompt: "Check the plan, try to identify the errors in reasoning and check the correctness of the current solution. If you find any errors, provide a refined design that addresses those issues. If the design is sound, provide suggestions for improvement or optimization"
+    send: true
   - label: Create Tasks
     agent: speckit.tasks
     prompt: Break the plan into tasks
     send: true
-  - label: Create Checklist
-    agent: speckit.checklist
-    prompt: Create a checklist for the following domain...
 ---
 
 ## User Input

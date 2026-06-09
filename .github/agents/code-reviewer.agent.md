@@ -92,6 +92,10 @@ For each changed file, evaluate against:
 - [ ] No obvious null-pointer risks without null guards
 - [ ] Method and variable names are descriptive and follow existing naming conventions
 
+**Potential introduced bugs**:
+- [ ] Logic errors (e.g., incorrect conditionals, off-by-one errors)
+- [ ] Review the use of newly implemented methods to ensure they do not introduce breaking changes or problems
+
 ---
 
 ### Step 4 — Categorise findings
