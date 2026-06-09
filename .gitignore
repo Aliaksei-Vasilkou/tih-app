@@ -53,3 +53,10 @@ logs/
 .env
 .env.local
 .env.*.local
+.java-version
+
+### AI Code Review Output ###
+# Review files produced by the code-reviewer agent.
+# Remove this entry if you want to commit reviews as quality-gate records.
+reviews/
+
