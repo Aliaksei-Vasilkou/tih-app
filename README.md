@@ -16,6 +16,7 @@ easy exploration.
 - [Rebuilding & Redeploying with Docker](#rebuilding--redeploying-with-docker)
 - [Running Locally (without Docker)](#running-locally-without-docker)
 - [Environment Variables](#environment-variables)
+- [Testing](#testing)
 - [Elasticsearch](#elasticsearch)
 - [API Documentation](#api-documentation)
 - [Useful Endpoints](#useful-endpoints)
@@ -73,7 +74,10 @@ src/
 │       └── db/changelog/             # Liquibase migrations
 └── test/
     └── java/com/tih/app/
-        └── TihAppTests.java          # Integration tests (Testcontainers)
+        ├── integration/              # Integration tests (*IT.java) — real DB + ES via Testcontainers
+        │   ├── SearchFallbackIT.java  # PostgreSQL ILIKE fallback ordering (DataJpaTest + Postgres container)
+        │   └── SearchRelevanceIT.java # Elasticsearch relevance ranking (SpringBootTest + ES container)
+        └── <mirrored-package>/       # Unit tests (*Test.java) — Mockito mocks, no containers
 ```
 
 ---
@@ -205,20 +209,26 @@ docker-compose up -d postgres
 2. **Build and run the application**:
 
 ```bash
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 Or build the JAR first and run it:
 
 ```bash
-./mvnw package -DskipTests
+mvn package -DskipTests
 java -jar target/tih-app-0.0.1-SNAPSHOT.jar
 ```
 
-3. **Run tests** (requires Docker for Testcontainers):
+3. **Run unit tests** (no Docker required):
 
 ```bash
-./mvnw test
+mvn test
+```
+
+4. **Run integration tests** (requires Docker for Testcontainers):
+
+```bash
+mvn verify -Pintegration-tests
 ```
 
 ---
@@ -343,6 +353,50 @@ The `/api/v1/questions/search` endpoint runs a compound Elasticsearch query with
 | 6        | `multi_match on *.ngram`          | `questionText^0.5, answer^0.2` | Partial word / substring hits         |
 
 Term frequency is handled natively by Elasticsearch's BM25 scorer.
+
+---
+
+## Testing
+
+### Running unit tests
+
+Unit tests use Mockito only — no Docker or running services required.
+They run automatically on every build:
+
+```bash
+mvn clean install
+# or just the test phase
+mvn test
+```
+
+### Running integration tests
+
+Integration tests spin up real PostgreSQL and Elasticsearch containers via Testcontainers.
+**Docker must be running** before executing these commands.
+
+Activate the `integration-tests` Maven profile to opt in:
+
+```bash
+# Unit tests + integration tests
+mvn verify -Pintegration-tests
+
+# Integration tests only (skip unit tests)
+mvn verify -Pintegration-tests -DskipTests
+```
+
+> **macOS with Docker Desktop 4.x+:** Docker Desktop intercepts JVM connections to the default
+> socket via a management proxy. To bypass it, point Testcontainers at the raw daemon socket:
+```bash
+export DOCKER_HOST="unix://$HOME/Library/Containers/com.docker.docker/Data/docker.raw.sock"
+mvn verify -Pintegration-tests
+ ```
+> The `api.version=1.47` system property is set automatically by the `integration-tests` Maven
+> profile, so Docker Engine's minimum API version requirement (>=1.40) is satisfied.
+> Linux and CI environments work without any extra variables.
+
+> **Note:** The first run pulls Docker images (`postgres:16` and
+> `docker.elastic.co/elasticsearch/elasticsearch:8.15.0`). Subsequent runs use the local
+> Docker image cache and are much faster.
 
 ---
 

@@ -1,6 +1,7 @@
 package com.tih.app.repository;
 
 import com.tih.app.model.Question;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -39,10 +40,14 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     Page<Question> findAllByLanguageId(Long languageId, Pageable pageable);
 
-    /** Filters by a set of language IDs (used to include General + selected language). */
+    /**
+     * Filters by a set of language IDs (used to include General + selected language).
+     */
     Page<Question> findAllByLanguageIdIn(Collection<Long> languageIds, Pageable pageable);
 
-    /** Filters by a set of language IDs AND a category (used to include General + selected language). */
+    /**
+     * Filters by a set of language IDs AND a category (used to include General + selected language).
+     */
     Page<Question> findAllByLanguageIdInAndCategoryId(Collection<Long> languageIds, Long categoryId, Pageable pageable);
 
     Page<Question> findAllByCategoryId(Long categoryId, Pageable pageable);
@@ -58,13 +63,13 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
               AND (:categoryId IS NULL OR q.category_id = :categoryId)
             ORDER BY ts_rank(q.search_vector, plainto_tsquery('english', :query)) DESC
             """,
-           countQuery = """
-            SELECT count(*) FROM questions q
-            WHERE q.search_vector @@ plainto_tsquery('english', :query)
-              AND (:languageId IS NULL OR q.language_id = :languageId)
-              AND (:categoryId IS NULL OR q.category_id = :categoryId)
-            """,
-           nativeQuery = true)
+            countQuery = """
+                    SELECT count(*) FROM questions q
+                    WHERE q.search_vector @@ plainto_tsquery('english', :query)
+                      AND (:languageId IS NULL OR q.language_id = :languageId)
+                      AND (:categoryId IS NULL OR q.category_id = :categoryId)
+                    """,
+            nativeQuery = true)
     Page<Question> searchByFullText(
             @Param("query") String query,
             @Param("languageId") Long languageId,
@@ -81,13 +86,13 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
               AND (:categoryId IS NULL OR q.category_id = :categoryId)
             ORDER BY ts_rank(q.search_vector, plainto_tsquery('english', :query)) DESC
             """,
-           countQuery = """
-            SELECT count(*) FROM questions q
-            WHERE q.search_vector @@ plainto_tsquery('english', :query)
-              AND q.language_id IN (:languageIds)
-              AND (:categoryId IS NULL OR q.category_id = :categoryId)
-            """,
-           nativeQuery = true)
+            countQuery = """
+                    SELECT count(*) FROM questions q
+                    WHERE q.search_vector @@ plainto_tsquery('english', :query)
+                      AND q.language_id IN (:languageIds)
+                      AND (:categoryId IS NULL OR q.category_id = :categoryId)
+                    """,
+            nativeQuery = true)
     Page<Question> searchByFullTextWithLanguageIds(
             @Param("query") String query,
             @Param("languageIds") Collection<Long> languageIds,
@@ -96,6 +101,7 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     /**
      * Fallback ILIKE search when full-text search query is too short.
+     * Results are ordered so that question-title matches surface before answer-only matches.
      */
     @Query("""
             SELECT q FROM Question q
@@ -103,6 +109,9 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
                    OR LOWER(q.answerContent) LIKE LOWER(CONCAT('%', :query, '%')))
               AND (:languageId IS NULL OR q.language.id = :languageId)
               AND (:categoryId IS NULL OR q.category.id = :categoryId)
+            ORDER BY
+                CASE WHEN LOWER(q.questionText) LIKE LOWER(CONCAT('%', :query, '%')) THEN 0 ELSE 1 END,
+                q.id
             """)
     Page<Question> searchByKeyword(
             @Param("query") String query,
@@ -112,6 +121,7 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     /**
      * Fallback ILIKE search filtered by a set of language IDs (e.g. selected language + General).
+     * Results are ordered so that question-title matches surface before answer-only matches.
      */
     @Query("""
             SELECT q FROM Question q
@@ -119,6 +129,9 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
                    OR LOWER(q.answerContent) LIKE LOWER(CONCAT('%', :query, '%')))
               AND q.language.id IN (:languageIds)
               AND (:categoryId IS NULL OR q.category.id = :categoryId)
+            ORDER BY
+                CASE WHEN LOWER(q.questionText) LIKE LOWER(CONCAT('%', :query, '%')) THEN 0 ELSE 1 END,
+                q.id
             """)
     Page<Question> searchByKeywordWithLanguageIds(
             @Param("query") String query,

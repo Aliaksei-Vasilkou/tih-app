@@ -238,7 +238,13 @@
           "clean architecture, hexagonal architecture, ports and adapters, onion architecture",
           "monolith, monolithic application, modular monolith",
           "load balancer, load balancing, round robin, least connections",
-          "api gateway, gateway pattern, reverse proxy, ingress"
+          "api gateway, gateway pattern, reverse proxy, ingress",
+          "virtual thread, virtual threads, vthread, vthreads, project loom, structured concurrency",
+          "postgresql, postgres, pg, psql",
+          "owasp, security vulnerability, injection attack, xss, csrf, sql injection, cross site scripting",
+          "netty, async io framework, nio server framework, event loop server, non-blocking server",
+          "troubleshooting, troubleshoot, debugging, debug session, diagnostic, problem investigation",
+          "full text search, full-text search, fts, text search, tsvector"
         ]
       }
     }

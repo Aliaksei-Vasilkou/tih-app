@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
@@ -12,19 +13,23 @@ import org.springframework.data.elasticsearch.annotations.InnerField;
 import org.springframework.data.elasticsearch.annotations.MultiField;
 import org.springframework.data.elasticsearch.annotations.Setting;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Elasticsearch document for full-text search over questions.
  * <p>
- * Field strategy — questionText / answerContent each carry four sub-fields:
- *   .main    — english_standard analyzer  (stem + stopwords)  primary relevance scoring
- *   .ngram   — ngram_analyzer             (2-10 char n-grams)  internal substring matching
- *   .fuzzy   — english_lowercase          (no stemming)        fuzzy / typo-tolerance at query time
- *   .synonym — english_standard (index) / english_synonym (search)  synonym expansion at search time
- *   .edge    — edge_ngram_analyzer (index) / english_lowercase (search)  prefix / autocomplete matching
+ * Field strategy — questionText / answerContent each carry five sub-fields:
+ * .ngram   — ngram_analyzer             (2-10 char n-grams)  internal substring matching
+ * .fuzzy   — english_lowercase          (no stemming)        fuzzy / typo-tolerance at query time
+ * .synonym — english_standard (index) / english_synonym (search)  synonym expansion at search time
+ * .edge    — edge_ngram_analyzer (index) / english_lowercase (search)  prefix / autocomplete matching
+ * </p>
+ * <p>
+ * The {@code tags} field uses a multi-field mapping:
+ * tags         — Keyword  (exact match, used for zero-score filter clauses)
+ * tags.text    — english_standard (scored text search over tag content)
+ * tags.synonym — english_standard (index) / english_synonym (search)  synonym-expanded tag scoring
  * </p>
  */
 @Document(indexName = "questions")
@@ -127,7 +132,23 @@ public class QuestionDocument {
     @Field(type = FieldType.Keyword)
     private String categoryName;
 
-    @Field(type = FieldType.Keyword)
+    @MultiField(
+            mainField = @Field(type = FieldType.Keyword),
+            otherFields = {
+                    @InnerField(
+                            suffix = "text",
+                            type = FieldType.Text,
+                            analyzer = "english_standard",
+                            searchAnalyzer = "english_standard"
+                    ),
+                    @InnerField(
+                            suffix = "synonym",
+                            type = FieldType.Text,
+                            analyzer = "english_standard",
+                            searchAnalyzer = "english_synonym"
+                    )
+            }
+    )
     @Builder.Default
     private List<String> tags = new ArrayList<>();
 }
