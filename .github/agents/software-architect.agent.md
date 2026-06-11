@@ -8,9 +8,17 @@ description: >
   Does NOT write or modify code files.
 tools: [read, edit, search]
 handoffs:
+  - label: Feed design into Spec
+    agent: speckit.specify
+    prompt: "Specify the feature with the design document as input"
+    send: true
   - label: Feed design into Plan
     agent: speckit.plan
     prompt: "Continue planning with refined design"
+    send: true
+  - label: Implement
+    agent: java-developer
+    prompt: "Implement the feature based on the research document. I want to go with the recommended approach but feel free to ask any clarifying questions if needed"
     send: true
 ---
 

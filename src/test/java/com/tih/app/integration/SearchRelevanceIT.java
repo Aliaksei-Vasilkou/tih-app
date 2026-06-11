@@ -1,9 +1,8 @@
 package com.tih.app.integration;
 
-import com.tih.app.dto.PageResponse;
-import com.tih.app.dto.QuestionDto;
-import com.tih.app.model.QuestionDocument;
-import com.tih.app.service.QuestionSearchService;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,9 +18,10 @@ import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import com.tih.app.dto.PageResponse;
+import com.tih.app.dto.QuestionDto;
+import com.tih.app.model.QuestionDocument;
+import com.tih.app.service.QuestionSearchService;
 
 /**
  * Integration tests verifying Elasticsearch search relevance ranking for TIH-053.

@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryDto {
+
     private Long id;
     private String name;
     private Long languageId;

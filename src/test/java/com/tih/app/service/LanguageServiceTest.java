@@ -1,12 +1,14 @@
 package com.tih.app.service;
 
-import com.tih.app.dto.LanguageCreateRequest;
-import com.tih.app.dto.LanguageDto;
-import com.tih.app.exception.DuplicateResourceException;
-import com.tih.app.exception.ResourceNotFoundException;
-import com.tih.app.mapper.LanguageMapper;
-import com.tih.app.model.Language;
-import com.tih.app.repository.LanguageRepository;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,15 +16,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import com.tih.app.dto.LanguageCreateRequest;
+import com.tih.app.dto.LanguageDto;
+import com.tih.app.exception.DuplicateResourceException;
+import com.tih.app.exception.ResourceNotFoundException;
+import com.tih.app.mapper.LanguageMapper;
+import com.tih.app.model.Language;
+import com.tih.app.repository.LanguageRepository;
 
 @ExtendWith(MockitoExtension.class)
 class LanguageServiceTest {
@@ -230,9 +230,6 @@ class LanguageServiceTest {
     }
 
     private LanguageCreateRequest buildRequest(String name, String code) {
-        return LanguageCreateRequest.builder()
-                .name(name)
-                .code(code)
-                .build();
+        return new LanguageCreateRequest(name, code);
     }
 }

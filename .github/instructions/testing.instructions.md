@@ -32,6 +32,8 @@ class under test.
 ## Coverage Requirement
 
 - **Business logic (services, domain helpers)** → line + branch coverage **> 80 %** (mandatory).
+- **Controllers** → every endpoint must have at least one `@WebMvcTest` test covering the happy path and each distinct error response (404, 400, 409, …).
+- **Mappers** → every MapStruct mapper must have a dedicated unit test covering `toDto`, `toDtoList`, `toEntity` / `updateEntity` (where applicable), and null-input guards.
 - Every pull request / change set must include tests for all new and modified code paths.
 - After implementing tests, run the full test suite and confirm **all tests pass** before
   considering the task done.
@@ -211,6 +213,73 @@ private static final String JAVA_CODE    = "java";
   class with `@Container static ...`.
 - Integration tests are slow — keep their count lower than unit tests. If a behaviour can be
   verified with a mock, write a unit test instead.
+
+---
+
+## Controller Tests
+
+Use `@WebMvcTest` for controller-layer tests. These are lightweight slice tests — no full Spring context, no real database.
+
+```java
+@WebMvcTest(LanguageController.class)
+class LanguageControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private LanguageService languageService;
+```
+
+**Rules:**
+- One `@WebMvcTest` class per controller. Name it `<Controller>Test.java` (not `IT`).
+- Use `@MockBean` for every service / repository the controller depends on.
+- `GlobalExceptionHandler` (`@RestControllerAdvice`) is auto-loaded — no extra setup needed.
+- Assert the HTTP status code, the key JSON fields, and the `code` field in error bodies.
+- Do **not** use `@SpringBootTest` for controller-only tests — it is too heavy.
+
+```java
+// ✓ correct — lightweight @WebMvcTest
+@Test
+void findById_notFound_returns404() throws Exception {
+    when(languageService.findById(99L))
+            .thenThrow(new ResourceNotFoundException("Language", 99L));
+
+    mockMvc.perform(get("/api/v1/languages/{id}", 99L))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value(ErrorMessage.RESOURCE_NOT_FOUND));
+}
+```
+
+---
+
+## Mapper Tests
+
+MapStruct mapper implementations have no Spring dependencies and can be instantiated directly — no Spring context required.
+
+```java
+class LanguageMapperTest {
+
+    private final LanguageMapper mapper = new LanguageMapperImpl();
+
+    @Test
+    void toDto_mapsAllFields() { ... }
+
+    @Test
+    void toDto_nullInput_returnsNull() {
+        assertThat(mapper.toDto(null)).isNull();
+    }
+}
+```
+
+**Rules:**
+- Every mapper must have a `<Mapper>Test.java` in `src/test/java/com/tih/app/mapper/`.
+- Cover: `toDto` happy path, `toDto` null input, `toDtoList`, `toEntity` / `updateEntity` where present.
+- For mappers with custom `@Named` methods (e.g. `tagsToNames`), cover null input, empty input, and sorting/transformation behaviour.
+- Do **not** use `@SpringBootTest` — instantiate the generated `*MapperImpl` directly.
 
 ---
 

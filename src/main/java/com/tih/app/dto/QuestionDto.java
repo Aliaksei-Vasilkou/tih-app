@@ -14,6 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class QuestionDto {
+
     private Long id;
     private String questionText;
     private String answerContent;
@@ -26,6 +27,6 @@ public class QuestionDto {
     private LocalDateTime updatedAt;
     private String createdBy;
     private List<String> tags = new ArrayList<>();
-    /** Relevance score from Elasticsearch — only populated for search results, null otherwise. */
+    // Relevance score from Elasticsearch — only populated for search results, null otherwise.
     private Float relevanceScore;
 }

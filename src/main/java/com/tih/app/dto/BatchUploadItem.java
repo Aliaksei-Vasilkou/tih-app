@@ -1,6 +1,7 @@
 package com.tih.app.dto;
 
 import jakarta.validation.constraints.NotBlank;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class BatchUploadItem {
 
-    /** Present on records that were previously exported; used for deduplication on import. */
+    // Present on records that were previously exported; used for deduplication on import.
     private UUID externalId;
 
     @NotBlank(message = "Question text is required")

@@ -1,5 +1,21 @@
 package com.tih.app.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.tih.app.dto.CategoryCreateRequest;
 import com.tih.app.dto.CategoryDto;
 import com.tih.app.exception.DuplicateResourceException;
@@ -9,22 +25,6 @@ import com.tih.app.model.Category;
 import com.tih.app.model.Language;
 import com.tih.app.repository.CategoryRepository;
 import com.tih.app.repository.LanguageRepository;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CategoryServiceTest {
@@ -62,9 +62,7 @@ class CategoryServiceTest {
         List<CategoryDto> result = service.findAll();
 
         // then
-        assertThat(result).hasSize(2)
-                .extracting(CategoryDto::getName)
-                .containsExactly(DATABASE, CORE);
+        assertThat(result).hasSize(2).extracting(CategoryDto::getName).containsExactly(DATABASE, CORE);
     }
 
     @Test
@@ -93,9 +91,7 @@ class CategoryServiceTest {
         List<CategoryDto> result = service.findByLanguage(LANGUAGE_ID);
 
         // then
-        assertThat(result).hasSize(1)
-                .extracting(CategoryDto::getName)
-                .containsExactly(CORE);
+        assertThat(result).hasSize(1).extracting(CategoryDto::getName).containsExactly(CORE);
     }
 
     @Test
@@ -134,8 +130,7 @@ class CategoryServiceTest {
         when(categoryRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // when - then
-        assertThatThrownBy(() -> service.findById(NON_EXISTENT_ID))
-                .isInstanceOf(ResourceNotFoundException.class)
+        assertThatThrownBy(() -> service.findById(NON_EXISTENT_ID)).isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(NON_EXISTENT_ID));
     }
 
@@ -169,8 +164,7 @@ class CategoryServiceTest {
         when(languageRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // when - then
-        assertThatThrownBy(() -> service.create(request))
-                .isInstanceOf(ResourceNotFoundException.class)
+        assertThatThrownBy(() -> service.create(request)).isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(NON_EXISTENT_ID));
         verify(categoryRepository, never()).save(any());
     }
@@ -185,9 +179,7 @@ class CategoryServiceTest {
         when(categoryRepository.existsByNameAndLanguageId(CORE, LANGUAGE_ID)).thenReturn(true);
 
         // when - then
-        assertThatThrownBy(() -> service.create(request))
-                .isInstanceOf(DuplicateResourceException.class)
-                .hasMessageContaining(CORE);
+        assertThatThrownBy(() -> service.create(request)).isInstanceOf(DuplicateResourceException.class).hasMessageContaining(CORE);
         verify(categoryRepository, never()).save(any());
     }
 
@@ -219,8 +211,7 @@ class CategoryServiceTest {
         when(categoryRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // when - then
-        assertThatThrownBy(() -> service.update(NON_EXISTENT_ID, buildRequest("X", LANGUAGE_ID)))
-                .isInstanceOf(ResourceNotFoundException.class)
+        assertThatThrownBy(() -> service.update(NON_EXISTENT_ID, buildRequest("X", LANGUAGE_ID))).isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(NON_EXISTENT_ID));
         verify(categoryRepository, never()).save(any());
     }
@@ -234,8 +225,7 @@ class CategoryServiceTest {
         when(languageRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // when - then
-        assertThatThrownBy(() -> service.update(CATEGORY_ID, buildRequest("X", NON_EXISTENT_ID)))
-                .isInstanceOf(ResourceNotFoundException.class)
+        assertThatThrownBy(() -> service.update(CATEGORY_ID, buildRequest("X", NON_EXISTENT_ID))).isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(NON_EXISTENT_ID));
         verify(categoryRepository, never()).save(any());
     }
@@ -260,38 +250,24 @@ class CategoryServiceTest {
         when(categoryRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // when - then
-        assertThatThrownBy(() -> service.delete(NON_EXISTENT_ID))
-                .isInstanceOf(ResourceNotFoundException.class)
+        assertThatThrownBy(() -> service.delete(NON_EXISTENT_ID)).isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(NON_EXISTENT_ID));
         verify(categoryRepository, never()).deleteById(any());
     }
 
     private Category buildCategory(Long id, String name) {
-        return Category.builder()
-                .id(id)
-                .name(name)
-                .build();
+        return Category.builder().id(id).name(name).build();
     }
 
     private CategoryDto buildCategoryDto(Long id, String name) {
-        return CategoryDto.builder()
-                .id(id)
-                .name(name)
-                .build();
+        return CategoryDto.builder().id(id).name(name).build();
     }
 
     private Language buildLanguage(Long id, String name) {
-        return Language.builder()
-                .id(id)
-                .name(name)
-                .code(name.toLowerCase())
-                .build();
+        return Language.builder().id(id).name(name).code(name.toLowerCase()).build();
     }
 
     private CategoryCreateRequest buildRequest(String name, Long languageId) {
-        return CategoryCreateRequest.builder()
-                .name(name)
-                .languageId(languageId)
-                .build();
+        return new CategoryCreateRequest(name, languageId);
     }
 }

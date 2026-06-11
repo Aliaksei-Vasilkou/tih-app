@@ -1,5 +1,28 @@
 package com.tih.app.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
 import com.tih.app.dto.PageResponse;
 import com.tih.app.dto.QuestionCreateRequest;
 import com.tih.app.dto.QuestionDto;
@@ -15,29 +38,6 @@ import com.tih.app.repository.LanguageRepository;
 import com.tih.app.repository.QuestionRepository;
 import com.tih.app.repository.TagRepository;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class QuestionServiceTest {
 
@@ -47,6 +47,8 @@ class QuestionServiceTest {
     private static final long NON_EXISTENT_ID = 99L;
     private static final long QUESTION_ID = 1L;
     private static final String QUESTION_TEXT = "What is JVM?";
+    private static final String SEARCH_QUERY_GC = "JVM garbage collection";
+    private static final String SEARCH_QUERY_JVM = "JVM";
 
     @Mock
     private QuestionRepository questionRepository;
@@ -179,13 +181,7 @@ class QuestionServiceTest {
     @Test
     void shouldDelegateToFindAll_whenSearchQueryIsBlank() {
         // given
-        QuestionSearchRequest request = QuestionSearchRequest.builder()
-                .query("  ")
-                .languageId(null)
-                .categoryId(null)
-                .page(0)
-                .size(10)
-                .build();
+        QuestionSearchRequest request = new QuestionSearchRequest("  ", null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of());
 
         when(questionRepository.findAll(any(Pageable.class))).thenReturn(page);
@@ -202,11 +198,7 @@ class QuestionServiceTest {
     @Test
     void shouldDelegateToFindAll_whenSearchQueryIsNull() {
         // given
-        QuestionSearchRequest request = QuestionSearchRequest.builder()
-                .query(null)
-                .page(0)
-                .size(10)
-                .build();
+        QuestionSearchRequest request = new QuestionSearchRequest(null, null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of());
 
         when(questionRepository.findAll(any(Pageable.class))).thenReturn(page);
@@ -223,17 +215,13 @@ class QuestionServiceTest {
     @Test
     void shouldDelegateToElasticsearch_whenQueryIsPresent() {
         // given
-        QuestionSearchRequest request = QuestionSearchRequest.builder()
-                .query("JVM garbage collection")
-                .page(0)
-                .size(10)
-                .build();
+        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_GC, null, null, 0, 10);
         PageResponse<QuestionDto> esResponse = PageResponse.<QuestionDto>builder()
                 .content(List.of(buildQuestionDto()))
                 .totalElements(1)
                 .build();
 
-        when(questionSearchService.search(eq("JVM garbage collection"), any(), any(), any()))
+        when(questionSearchService.search(eq(SEARCH_QUERY_GC), any(), any(), any()))
                 .thenReturn(esResponse);
 
         // when
@@ -241,25 +229,19 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionSearchService).search(eq("JVM garbage collection"), any(), any(), any());
+        verify(questionSearchService).search(eq(SEARCH_QUERY_GC), any(), any(), any());
         verify(questionRepository, never()).searchByFullText(any(), any(), any(), any());
     }
 
     @Test
     void shouldFallBackToPostgresFTS_whenElasticsearchThrowsException() {
         // given — query >= 3 chars triggers the FTS path
-        QuestionSearchRequest request = QuestionSearchRequest.builder()
-                .query("JVM")
-                .languageId(null)
-                .categoryId(null)
-                .page(0)
-                .size(10)
-                .build();
+        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_JVM, null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
         when(questionSearchService.search(any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("ES unavailable"));
-        when(questionRepository.searchByFullText(eq("JVM"), isNull(), isNull(), any(Pageable.class)))
+        when(questionRepository.searchByFullText(eq(SEARCH_QUERY_JVM), isNull(), isNull(), any(Pageable.class)))
                 .thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
@@ -268,19 +250,13 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).searchByFullText(eq("JVM"), isNull(), isNull(), any(Pageable.class));
+        verify(questionRepository).searchByFullText(eq(SEARCH_QUERY_JVM), isNull(), isNull(), any(Pageable.class));
     }
 
     @Test
     void shouldUseFallbackKeywordSearch_whenQueryIsShorterThanMinFtsLength() {
         // given — query < 3 chars falls back to keyword search
-        QuestionSearchRequest request = QuestionSearchRequest.builder()
-                .query("GC")
-                .languageId(null)
-                .categoryId(null)
-                .page(0)
-                .size(10)
-                .build();
+        QuestionSearchRequest request = new QuestionSearchRequest("GC", null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
         when(questionSearchService.search(any(), any(), any(), any()))
@@ -301,19 +277,13 @@ class QuestionServiceTest {
     @Test
     void shouldUseFallbackWithLanguageIds_whenLanguageFilterSetAndEsFails() {
         // given
-        QuestionSearchRequest request = QuestionSearchRequest.builder()
-                .query("JVM")
-                .languageId(LANGUAGE_ID)
-                .categoryId(null)
-                .page(0)
-                .size(10)
-                .build();
+        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_JVM, LANGUAGE_ID, null, 0, 10);
         List<Long> expectedIds = List.of(LANGUAGE_ID, GENERAL_LANGUAGE_ID);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
         when(questionSearchService.search(any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("ES unavailable"));
-        when(questionRepository.searchByFullTextWithLanguageIds(eq("JVM"), eq(expectedIds), isNull(), any(Pageable.class)))
+        when(questionRepository.searchByFullTextWithLanguageIds(eq(SEARCH_QUERY_JVM), eq(expectedIds), isNull(), any(Pageable.class)))
                 .thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
@@ -322,7 +292,7 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).searchByFullTextWithLanguageIds(eq("JVM"), eq(expectedIds), isNull(), any(Pageable.class));
+        verify(questionRepository).searchByFullTextWithLanguageIds(eq(SEARCH_QUERY_JVM), eq(expectedIds), isNull(), any(Pageable.class));
     }
 
     @Test

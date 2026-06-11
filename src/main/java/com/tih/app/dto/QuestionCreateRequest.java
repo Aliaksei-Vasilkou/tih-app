@@ -2,6 +2,7 @@ package com.tih.app.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,6 +28,6 @@ public class QuestionCreateRequest {
     @NotNull(message = "Category ID is required")
     private Long categoryId;
 
-    /** Optional list of tag IDs to associate with this question (all must belong to the same language). */
+    // Optional list of tag IDs to associate with this question (all must belong to the same language).
     private List<Long> tagIds = new ArrayList<>();
 }

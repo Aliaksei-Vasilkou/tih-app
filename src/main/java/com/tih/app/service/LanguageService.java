@@ -7,8 +7,10 @@ import com.tih.app.exception.ResourceNotFoundException;
 import com.tih.app.mapper.LanguageMapper;
 import com.tih.app.model.Language;
 import com.tih.app.repository.LanguageRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -38,13 +40,16 @@ public class LanguageService {
     @Transactional
     @CacheEvict(value = "languages", allEntries = true)
     public LanguageDto create(LanguageCreateRequest request) {
-        if (languageRepository.existsByCode(request.getCode())) {
-            throw new DuplicateResourceException("Language", "code", request.getCode());
+        if (languageRepository.existsByCode(request.code())) {
+            throw new DuplicateResourceException("Language", "code", request.code());
         }
-        if (languageRepository.existsByName(request.getName())) {
-            throw new DuplicateResourceException("Language", "name", request.getName());
+
+        if (languageRepository.existsByName(request.name())) {
+            throw new DuplicateResourceException("Language", "name", request.name());
         }
+
         Language language = languageMapper.toEntity(request);
+
         return languageMapper.toDto(languageRepository.save(language));
     }
 
@@ -53,6 +58,7 @@ public class LanguageService {
     public LanguageDto update(Long id, LanguageCreateRequest request) {
         Language language = getLanguageOrThrow(id);
         languageMapper.updateEntity(request, language);
+
         return languageMapper.toDto(languageRepository.save(language));
     }
 

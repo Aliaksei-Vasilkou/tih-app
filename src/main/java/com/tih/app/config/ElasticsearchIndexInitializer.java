@@ -4,8 +4,10 @@ import com.tih.app.model.Question;
 import com.tih.app.model.QuestionDocument;
 import com.tih.app.repository.QuestionRepository;
 import com.tih.app.service.QuestionIndexService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;

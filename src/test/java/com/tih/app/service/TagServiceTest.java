@@ -1,5 +1,21 @@
 package com.tih.app.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.tih.app.dto.TagCreateRequest;
 import com.tih.app.dto.TagDto;
 import com.tih.app.exception.DuplicateResourceException;
@@ -9,22 +25,6 @@ import com.tih.app.model.Language;
 import com.tih.app.model.Tag;
 import com.tih.app.repository.LanguageRepository;
 import com.tih.app.repository.TagRepository;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TagServiceTest {
@@ -126,7 +126,7 @@ class TagServiceTest {
     void shouldCreateTag_whenNameIsUniqueForLanguage() {
         // given
         Language language = buildLanguage(LANGUAGE_ID);
-        TagCreateRequest request = TagCreateRequest.builder().name(CONCURRENCY).build();
+        TagCreateRequest request = new TagCreateRequest(CONCURRENCY);
         Tag saved = buildTag(20L, CONCURRENCY, language);
         TagDto dto = TagDto.builder().id(20L).name(CONCURRENCY).build();
 
@@ -149,7 +149,7 @@ class TagServiceTest {
         when(languageRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // when - then
-        assertThatThrownBy(() -> service.create(NON_EXISTENT_ID, TagCreateRequest.builder().name("X").build()))
+        assertThatThrownBy(() -> service.create(NON_EXISTENT_ID, new TagCreateRequest("X")))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(NON_EXISTENT_ID));
         verify(tagRepository, never()).save(any());
@@ -164,7 +164,7 @@ class TagServiceTest {
         when(tagRepository.existsByNameIgnoreCaseAndLanguageId(CONCURRENCY, LANGUAGE_ID)).thenReturn(true);
 
         // when - then
-        assertThatThrownBy(() -> service.create(LANGUAGE_ID, TagCreateRequest.builder().name(CONCURRENCY).build()))
+        assertThatThrownBy(() -> service.create(LANGUAGE_ID, new TagCreateRequest(CONCURRENCY)))
                 .isInstanceOf(DuplicateResourceException.class)
                 .hasMessageContaining(CONCURRENCY);
         verify(tagRepository, never()).save(any());
@@ -174,7 +174,7 @@ class TagServiceTest {
     void shouldTrimTagName_whenCreatingWithWhitespace() {
         // given — duplicate check uses the raw name; trimming only happens when building the entity
         Language language = buildLanguage(LANGUAGE_ID);
-        TagCreateRequest request = TagCreateRequest.builder().name("  Streams  ").build();
+        TagCreateRequest request = new TagCreateRequest("  Streams  ");
         Tag saved = buildTag(21L, "Streams", language);
         TagDto dto = TagDto.builder().id(21L).name("Streams").build();
 
@@ -195,7 +195,7 @@ class TagServiceTest {
         // given
         Language language = buildLanguage(LANGUAGE_ID);
         Tag tag = buildTag(TAG_ID, "OldName", language);
-        TagCreateRequest request = TagCreateRequest.builder().name("NewName").build();
+        TagCreateRequest request = new TagCreateRequest("NewName");
         Tag saved = buildTag(TAG_ID, "NewName", language);
         TagDto dto = TagDto.builder().id(TAG_ID).name("NewName").build();
 
@@ -224,7 +224,7 @@ class TagServiceTest {
         when(tagRepository.findById(TAG_ID)).thenReturn(Optional.of(tag));
 
         // when - then
-        assertThatThrownBy(() -> service.update(LANGUAGE_ID, TAG_ID, TagCreateRequest.builder().name("NewName").build()))
+        assertThatThrownBy(() -> service.update(LANGUAGE_ID, TAG_ID, new TagCreateRequest("NewName")))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(TAG_ID));
         verify(tagRepository, never()).save(any());
@@ -235,7 +235,7 @@ class TagServiceTest {
         // given
         Language language = buildLanguage(LANGUAGE_ID);
         Tag tag = buildTag(TAG_ID, "OldName", language);
-        TagCreateRequest request = TagCreateRequest.builder().name("ExistingName").build();
+        TagCreateRequest request = new TagCreateRequest("ExistingName");
 
         when(languageRepository.findById(LANGUAGE_ID)).thenReturn(Optional.of(language));
         when(tagRepository.findById(TAG_ID)).thenReturn(Optional.of(tag));
@@ -253,7 +253,7 @@ class TagServiceTest {
         // given — same name (case-insensitive), duplicate check must be skipped
         Language language = buildLanguage(LANGUAGE_ID);
         Tag tag = buildTag(TAG_ID, "SameName", language);
-        TagCreateRequest request = TagCreateRequest.builder().name("samename").build();
+        TagCreateRequest request = new TagCreateRequest("samename");
         Tag saved = buildTag(TAG_ID, "samename", language);
         TagDto dto = TagDto.builder().id(TAG_ID).name("samename").build();
 
@@ -276,7 +276,7 @@ class TagServiceTest {
         when(languageRepository.findById(NON_EXISTENT_ID)).thenReturn(Optional.empty());
 
         // when - then
-        assertThatThrownBy(() -> service.update(NON_EXISTENT_ID, TAG_ID, TagCreateRequest.builder().name("X").build()))
+        assertThatThrownBy(() -> service.update(NON_EXISTENT_ID, TAG_ID, new TagCreateRequest("X")))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(NON_EXISTENT_ID));
         verify(tagRepository, never()).save(any());

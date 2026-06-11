@@ -4,6 +4,7 @@ import com.tih.app.dto.QuestionCreateRequest;
 import com.tih.app.dto.QuestionDto;
 import com.tih.app.model.Question;
 import com.tih.app.model.Tag;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
@@ -42,7 +43,9 @@ public interface QuestionMapper {
 
     @Named("tagsToNames")
     default List<String> tagsToNames(List<Tag> tags) {
-        if (tags == null) return Collections.emptyList();
+        if (tags == null) {
+            return Collections.emptyList();
+        }
         return tags.stream().map(Tag::getName).sorted().toList();
     }
 }

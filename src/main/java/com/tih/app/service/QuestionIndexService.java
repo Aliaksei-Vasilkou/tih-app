@@ -1,19 +1,18 @@
 package com.tih.app.service;
 
-import com.tih.app.model.Question;
-import com.tih.app.model.QuestionDocument;
-import com.tih.app.model.Tag;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
-import org.springframework.stereotype.Service;
-
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Manages syncing Question entities from PostgreSQL into the Elasticsearch index.
- */
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.stereotype.Service;
+
+import com.tih.app.model.Question;
+import com.tih.app.model.QuestionDocument;
+import com.tih.app.model.Tag;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -31,7 +30,6 @@ public class QuestionIndexService {
         log.debug("Removed question id={} from index", questionId);
     }
 
-    /** Bulk upsert — used on startup to sync any questions already in PostgreSQL. */
     public void reindexAll(List<Question> questions) {
         List<QuestionDocument> docs = questions.stream().map(this::toDocument).toList();
         elasticsearchOperations.save(docs);
@@ -42,6 +40,7 @@ public class QuestionIndexService {
         List<String> tagNames = (q.getTags() != null)
                 ? q.getTags().stream().map(Tag::getName).sorted().toList()
                 : Collections.emptyList();
+
         return QuestionDocument.builder()
                 .id(String.valueOf(q.getId()))
                 .externalId(q.getExternalId() != null ? q.getExternalId().toString() : null)

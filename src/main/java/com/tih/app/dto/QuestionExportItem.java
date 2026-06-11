@@ -18,9 +18,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class QuestionExportItem {
 
-    /** Stable portable identifier — used for deduplication on re-import. */
+    // Stable portable identifier — used for deduplication on re-import.
     private UUID externalId;
-
     private String questionText;
     private String answerContent;
     private String languageCode;

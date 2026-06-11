@@ -1,61 +1,77 @@
 package com.tih.app.exception;
 
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
+
+import com.tih.app.util.ErrorCode;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
+    private static final String SOURCE = "tih-app";
+
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ProblemDetail handleResourceNotFound(ResourceNotFoundException ex) {
+    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
-        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        detail.setType(URI.create("/errors/resource-not-found"));
-        detail.setTitle("Resource Not Found");
-        return detail;
+        ErrorResponse error = ErrorResponse.builder()
+                .code(ErrorCode.RESOURCE_NOT_FOUND)
+                .message(ex.getMessage())
+                .source(SOURCE)
+                .errors(List.of())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
     @ExceptionHandler(DuplicateResourceException.class)
-    public ProblemDetail handleDuplicateResource(DuplicateResourceException ex) {
+    public ResponseEntity<ErrorResponse> handleDuplicateResource(DuplicateResourceException ex) {
         log.warn("Duplicate resource: {}", ex.getMessage());
-        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
-        detail.setType(URI.create("/errors/duplicate-resource"));
-        detail.setTitle("Duplicate Resource");
-        return detail;
+        ErrorResponse error = ErrorResponse.builder()
+                .code(ErrorCode.DUPLICATE_RESOURCE)
+                .message(ex.getMessage())
+                .source(SOURCE)
+                .errors(List.of())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ProblemDetail handleValidationErrors(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
-        detail.setType(URI.create("/errors/validation-failed"));
-        detail.setTitle("Validation Failed");
-        detail.setProperty("fieldErrors", errors);
-        return detail;
+    public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex) {
+        List<ValidationError> validationErrors = ex.getBindingResult().getAllErrors().stream()
+                .filter(FieldError.class::isInstance)
+                .map(error -> (FieldError) error)
+                .map(fieldError -> new ValidationError("VALIDATION_ERROR", fieldError.getField(), fieldError.getDefaultMessage()))
+                .toList();
+        ErrorResponse error = ErrorResponse.builder()
+                .code(ErrorCode.VALIDATION_FAILED)
+                .message("Validation failed")
+                .source(SOURCE)
+                .errors(validationErrors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     @ExceptionHandler(Exception.class)
-    public ProblemDetail handleGenericException(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         log.error("Unexpected error", ex);
-        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred");
-        detail.setType(URI.create("/errors/internal-server-error"));
-        detail.setTitle("Internal Server Error");
-        return detail;
+        ErrorResponse error = ErrorResponse.builder()
+                .code(ErrorCode.INTERNAL_SERVER_ERROR)
+                .message("An unexpected error occurred")
+                .source(SOURCE)
+                .errors(List.of())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }

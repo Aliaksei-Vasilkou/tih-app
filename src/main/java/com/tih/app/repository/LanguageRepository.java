@@ -1,10 +1,11 @@
 package com.tih.app.repository;
 
-import com.tih.app.model.Language;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.tih.app.model.Language;
 
 @Repository
 public interface LanguageRepository extends JpaRepository<Language, Long> {

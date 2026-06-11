@@ -1,10 +1,10 @@
 package com.tih.app.service;
 
-import com.tih.app.model.Category;
-import com.tih.app.model.Language;
-import com.tih.app.model.Question;
-import com.tih.app.model.QuestionDocument;
-import com.tih.app.model.Tag;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
+
+import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,11 +14,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 
-import java.util.List;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
+import com.tih.app.model.Category;
+import com.tih.app.model.Language;
+import com.tih.app.model.Question;
+import com.tih.app.model.QuestionDocument;
+import com.tih.app.model.Tag;
 
 @ExtendWith(MockitoExtension.class)
 class QuestionIndexServiceTest {

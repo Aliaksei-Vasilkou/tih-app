@@ -1,12 +1,8 @@
 package com.tih.app.integration;
 
-import com.tih.app.config.AuditConfig;
-import com.tih.app.model.Category;
-import com.tih.app.model.Language;
-import com.tih.app.model.Question;
-import com.tih.app.repository.CategoryRepository;
-import com.tih.app.repository.LanguageRepository;
-import com.tih.app.repository.QuestionRepository;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,9 +17,13 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import com.tih.app.config.AuditConfig;
+import com.tih.app.model.Category;
+import com.tih.app.model.Language;
+import com.tih.app.model.Question;
+import com.tih.app.repository.CategoryRepository;
+import com.tih.app.repository.LanguageRepository;
+import com.tih.app.repository.QuestionRepository;
 
 /**
  * Integration tests for the PostgreSQL ILIKE fallback search path.

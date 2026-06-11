@@ -1,16 +1,6 @@
 package com.tih.app.service;
 
-import co.elastic.clients.elasticsearch._types.FieldValue;
-import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
-import co.elastic.clients.elasticsearch._types.query_dsl.Query;
-import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
-
-import com.tih.app.dto.PageResponse;
-import com.tih.app.dto.QuestionDto;
-import com.tih.app.model.QuestionDocument;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +10,17 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import com.tih.app.dto.PageResponse;
+import com.tih.app.dto.QuestionDto;
+import com.tih.app.model.QuestionDocument;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import co.elastic.clients.elasticsearch._types.FieldValue;
+import co.elastic.clients.elasticsearch._types.query_dsl.Operator;
+import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 
 /**
  * Elasticsearch-backed search service.
@@ -62,9 +62,7 @@ import java.util.List;
 @Slf4j
 public class QuestionSearchService {
 
-    /**
-     * ID of the "General" language — always included alongside any selected language filter.
-     */
+    //ID of the "General" language — always included alongside any selected language filter.
     private static final long GENERAL_LANGUAGE_ID = 1L;
     private static final String QUESTION_TEXT = "questionText";
     private static final String ANSWER_CONTENT = "answerContent";

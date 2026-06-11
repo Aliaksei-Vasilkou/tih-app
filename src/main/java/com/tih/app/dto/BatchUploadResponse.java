@@ -12,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BatchUploadResponse {
+
     private int totalItems;
     private int successCount;
     private int failureCount;

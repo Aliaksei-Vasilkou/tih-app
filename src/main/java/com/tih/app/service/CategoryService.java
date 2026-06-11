@@ -1,5 +1,12 @@
 package com.tih.app.service;
 
+import java.util.List;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.tih.app.dto.CategoryCreateRequest;
 import com.tih.app.dto.CategoryDto;
 import com.tih.app.exception.DuplicateResourceException;
@@ -9,14 +16,9 @@ import com.tih.app.model.Category;
 import com.tih.app.model.Language;
 import com.tih.app.repository.CategoryRepository;
 import com.tih.app.repository.LanguageRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -43,31 +45,35 @@ public class CategoryService {
     }
 
     @Transactional
-    @CacheEvict(value = {"categories", "categoriesByLanguage"}, allEntries = true)
+    @CacheEvict(value = { "categories", "categoriesByLanguage" }, allEntries = true)
     public CategoryDto create(CategoryCreateRequest request) {
-        Language language = languageRepository.findById(request.getLanguageId())
-                .orElseThrow(() -> new ResourceNotFoundException("Language", request.getLanguageId()));
-        if (categoryRepository.existsByNameAndLanguageId(request.getName(), request.getLanguageId())) {
-            throw new DuplicateResourceException("Category", "name", request.getName());
+        Language language = languageRepository.findById(request.languageId())
+                .orElseThrow(() -> new ResourceNotFoundException("Language", request.languageId()));
+
+        if (categoryRepository.existsByNameAndLanguageId(request.name(), request.languageId())) {
+            throw new DuplicateResourceException("Category", "name", request.name());
         }
+
         Category category = categoryMapper.toEntity(request);
         category.setLanguage(language);
+
         return categoryMapper.toDto(categoryRepository.save(category));
     }
 
     @Transactional
-    @CacheEvict(value = {"categories", "categoriesByLanguage"}, allEntries = true)
+    @CacheEvict(value = { "categories", "categoriesByLanguage" }, allEntries = true)
     public CategoryDto update(Long id, CategoryCreateRequest request) {
         Category category = getCategoryOrThrow(id);
-        Language language = languageRepository.findById(request.getLanguageId())
-                .orElseThrow(() -> new ResourceNotFoundException("Language", request.getLanguageId()));
+        Language language = languageRepository.findById(request.languageId())
+                .orElseThrow(() -> new ResourceNotFoundException("Language", request.languageId()));
         categoryMapper.updateEntity(request, category);
         category.setLanguage(language);
+
         return categoryMapper.toDto(categoryRepository.save(category));
     }
 
     @Transactional
-    @CacheEvict(value = {"categories", "categoriesByLanguage"}, allEntries = true)
+    @CacheEvict(value = { "categories", "categoriesByLanguage" }, allEntries = true)
     public void delete(Long id) {
         getCategoryOrThrow(id);
         categoryRepository.deleteById(id);
