@@ -20,6 +20,48 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     Optional<Question> findByExternalId(UUID externalId);
 
     /**
+     * Browse query filtered by a set of language IDs, optional category, and optional level filter.
+     * When {@code levelFilterFlag} is null the level clauses are skipped and all questions are returned.
+     * {@code includedLevels} and {@code allLevelTags} must always be non-empty collections.
+     */
+    @Query("""
+            SELECT DISTINCT q FROM Question q
+            WHERE q.language.id IN :languageIds
+              AND (:categoryId IS NULL OR q.category.id = :categoryId)
+              AND (:levelFilterFlag IS NULL
+                   OR EXISTS (SELECT t FROM q.tags t WHERE t.name IN :includedLevels)
+                   OR NOT EXISTS (SELECT t FROM q.tags t WHERE t.name IN :allLevelTags))
+            ORDER BY q.createdAt DESC
+            """)
+    Page<Question> findAllByLanguageIdsAndFilters(
+            @Param("languageIds") Collection<Long> languageIds,
+            @Param("categoryId") Long categoryId,
+            @Param("levelFilterFlag") String levelFilterFlag,
+            @Param("includedLevels") Collection<String> includedLevels,
+            @Param("allLevelTags") Collection<String> allLevelTags,
+            Pageable pageable);
+
+    /**
+     * Browse query with optional category and level filters (no language filter).
+     * When {@code levelFilterFlag} is null the level clauses are skipped and all questions are returned.
+     * {@code includedLevels} and {@code allLevelTags} must always be non-empty collections.
+     */
+    @Query("""
+            SELECT DISTINCT q FROM Question q
+            WHERE (:categoryId IS NULL OR q.category.id = :categoryId)
+              AND (:levelFilterFlag IS NULL
+                   OR EXISTS (SELECT t FROM q.tags t WHERE t.name IN :includedLevels)
+                   OR NOT EXISTS (SELECT t FROM q.tags t WHERE t.name IN :allLevelTags))
+            ORDER BY q.createdAt DESC
+            """)
+    Page<Question> findAllByFilters(
+            @Param("categoryId") Long categoryId,
+            @Param("levelFilterFlag") String levelFilterFlag,
+            @Param("includedLevels") Collection<String> includedLevels,
+            @Param("allLevelTags") Collection<String> allLevelTags,
+            Pageable pageable);
+
+    /**
      * Fetches all questions for export, eagerly joining language, category and tags
      * to avoid N+1. Both filter params are optional (pass null to skip the filter).
      */
@@ -61,6 +103,11 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
             WHERE q.search_vector @@ plainto_tsquery('english', :query)
               AND (:languageId IS NULL OR q.language_id = :languageId)
               AND (:categoryId IS NULL OR q.category_id = :categoryId)
+              AND (:levelFilterFlag IS NULL
+                   OR EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                              WHERE qt.question_id = q.id AND t.name IN (:includedLevels))
+                   OR NOT EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                                  WHERE qt.question_id = q.id AND t.name IN (:allLevelTags)))
             ORDER BY ts_rank(q.search_vector, plainto_tsquery('english', :query)) DESC
             """,
             countQuery = """
@@ -68,12 +115,20 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
                     WHERE q.search_vector @@ plainto_tsquery('english', :query)
                       AND (:languageId IS NULL OR q.language_id = :languageId)
                       AND (:categoryId IS NULL OR q.category_id = :categoryId)
+                      AND (:levelFilterFlag IS NULL
+                           OR EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                                      WHERE qt.question_id = q.id AND t.name IN (:includedLevels))
+                           OR NOT EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                                          WHERE qt.question_id = q.id AND t.name IN (:allLevelTags)))
                     """,
             nativeQuery = true)
     Page<Question> searchByFullText(
             @Param("query") String query,
             @Param("languageId") Long languageId,
             @Param("categoryId") Long categoryId,
+            @Param("levelFilterFlag") String levelFilterFlag,
+            @Param("includedLevels") Collection<String> includedLevels,
+            @Param("allLevelTags") Collection<String> allLevelTags,
             Pageable pageable);
 
     /**
@@ -84,6 +139,11 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
             WHERE q.search_vector @@ plainto_tsquery('english', :query)
               AND q.language_id IN (:languageIds)
               AND (:categoryId IS NULL OR q.category_id = :categoryId)
+              AND (:levelFilterFlag IS NULL
+                   OR EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                              WHERE qt.question_id = q.id AND t.name IN (:includedLevels))
+                   OR NOT EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                                  WHERE qt.question_id = q.id AND t.name IN (:allLevelTags)))
             ORDER BY ts_rank(q.search_vector, plainto_tsquery('english', :query)) DESC
             """,
             countQuery = """
@@ -91,12 +151,20 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
                     WHERE q.search_vector @@ plainto_tsquery('english', :query)
                       AND q.language_id IN (:languageIds)
                       AND (:categoryId IS NULL OR q.category_id = :categoryId)
+                      AND (:levelFilterFlag IS NULL
+                           OR EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                                      WHERE qt.question_id = q.id AND t.name IN (:includedLevels))
+                           OR NOT EXISTS (SELECT 1 FROM question_tags qt JOIN tags t ON qt.tag_id = t.id
+                                          WHERE qt.question_id = q.id AND t.name IN (:allLevelTags)))
                     """,
             nativeQuery = true)
     Page<Question> searchByFullTextWithLanguageIds(
             @Param("query") String query,
             @Param("languageIds") Collection<Long> languageIds,
             @Param("categoryId") Long categoryId,
+            @Param("levelFilterFlag") String levelFilterFlag,
+            @Param("includedLevels") Collection<String> includedLevels,
+            @Param("allLevelTags") Collection<String> allLevelTags,
             Pageable pageable);
 
     /**
@@ -109,6 +177,9 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
                    OR LOWER(q.answerContent) LIKE LOWER(CONCAT('%', :query, '%')))
               AND (:languageId IS NULL OR q.language.id = :languageId)
               AND (:categoryId IS NULL OR q.category.id = :categoryId)
+              AND (:levelFilterFlag IS NULL
+                   OR EXISTS (SELECT t FROM q.tags t WHERE t.name IN :includedLevels)
+                   OR NOT EXISTS (SELECT t FROM q.tags t WHERE t.name IN :allLevelTags))
             ORDER BY
                 CASE WHEN LOWER(q.questionText) LIKE LOWER(CONCAT('%', :query, '%')) THEN 0 ELSE 1 END,
                 q.id
@@ -117,6 +188,9 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
             @Param("query") String query,
             @Param("languageId") Long languageId,
             @Param("categoryId") Long categoryId,
+            @Param("levelFilterFlag") String levelFilterFlag,
+            @Param("includedLevels") Collection<String> includedLevels,
+            @Param("allLevelTags") Collection<String> allLevelTags,
             Pageable pageable);
 
     /**
@@ -129,6 +203,9 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
                    OR LOWER(q.answerContent) LIKE LOWER(CONCAT('%', :query, '%')))
               AND q.language.id IN (:languageIds)
               AND (:categoryId IS NULL OR q.category.id = :categoryId)
+              AND (:levelFilterFlag IS NULL
+                   OR EXISTS (SELECT t FROM q.tags t WHERE t.name IN :includedLevels)
+                   OR NOT EXISTS (SELECT t FROM q.tags t WHERE t.name IN :allLevelTags))
             ORDER BY
                 CASE WHEN LOWER(q.questionText) LIKE LOWER(CONCAT('%', :query, '%')) THEN 0 ELSE 1 END,
                 q.id
@@ -137,5 +214,8 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
             @Param("query") String query,
             @Param("languageIds") Collection<Long> languageIds,
             @Param("categoryId") Long categoryId,
+            @Param("levelFilterFlag") String levelFilterFlag,
+            @Param("includedLevels") Collection<String> includedLevels,
+            @Param("allLevelTags") Collection<String> allLevelTags,
             Pageable pageable);
 }

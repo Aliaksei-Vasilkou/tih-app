@@ -88,7 +88,7 @@ class SearchFallbackIT {
 
         // when
         Page<Question> results = questionRepository.searchByKeyword(
-                "gc", null, null, PageRequest.of(0, 10));
+                "gc", null, null, null, List.of("__NA__"), List.of("__NA__"), PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent()).hasSizeGreaterThanOrEqualTo(2);
@@ -112,7 +112,7 @@ class SearchFallbackIT {
 
         // when
         Page<Question> results = questionRepository.searchByKeywordWithLanguageIds(
-                "gc", List.of(language.getId()), null, PageRequest.of(0, 10));
+                "gc", List.of(language.getId()), null, null, List.of("__NA__"), List.of("__NA__"), PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent()).hasSizeGreaterThanOrEqualTo(2);
@@ -135,7 +135,7 @@ class SearchFallbackIT {
 
         // when
         Page<Question> results = questionRepository.searchByKeyword(
-                "gc", null, null, PageRequest.of(0, 10));
+                "gc", null, null, null, List.of("__NA__"), List.of("__NA__"), PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent()).hasSize(1);

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +29,7 @@ import com.tih.app.repository.LanguageRepository;
 class LanguageServiceTest {
 
     private static final long LANGUAGE_ID = 1L;
+    private static final long JAVA_ID = 2L;
     private static final long NON_EXISTENT_ID = 99L;
     private static final String JAVA_NAME = "Java";
     private static final String JAVA_CODE = "java";
@@ -227,6 +229,71 @@ class LanguageServiceTest {
                 .name(name)
                 .code(code)
                 .build();
+    }
+
+    @Test
+    void shouldReturnNull_whenResolveLanguageIdsCalledWithNull() {
+        // given — no stubs needed
+
+        // when
+        List<Long> result = service.resolveLanguageIds(null);
+
+        // then
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void shouldReturnListContainingOnlyGeneralId_whenRequestedIdEqualsGeneralId() {
+        // given
+        Language general = buildLanguage(LANGUAGE_ID, GENERAL_NAME, GENERAL_CODE);
+
+        when(languageRepository.findByCode(GENERAL_CODE)).thenReturn(Optional.of(general));
+
+        // when
+        List<Long> result = service.resolveLanguageIds(LANGUAGE_ID);
+
+        // then
+        assertThat(result).containsExactly(LANGUAGE_ID);
+    }
+
+    @Test
+    void shouldReturnListWithRequestedIdFollowedByGeneralId_whenNonGeneralLanguageIdGiven() {
+        // given
+        Language general = buildLanguage(LANGUAGE_ID, GENERAL_NAME, GENERAL_CODE);
+
+        when(languageRepository.findByCode(GENERAL_CODE)).thenReturn(Optional.of(general));
+
+        // when
+        List<Long> result = service.resolveLanguageIds(JAVA_ID);
+
+        // then
+        assertThat(result).containsExactly(JAVA_ID, LANGUAGE_ID);
+    }
+
+    @Test
+    void shouldThrowResourceNotFoundException_whenGeneralLanguageNotFoundOnResolve() {
+        // given
+        when(languageRepository.findByCode(GENERAL_CODE)).thenReturn(Optional.empty());
+
+        // when - then
+        assertThatThrownBy(() -> service.resolveLanguageIds(JAVA_ID))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining(GENERAL_CODE);
+    }
+
+    @Test
+    void shouldQueryRepositoryOnlyOnce_whenResolveCalledMultipleTimesWithSameInput() {
+        // given
+        Language general = buildLanguage(LANGUAGE_ID, GENERAL_NAME, GENERAL_CODE);
+
+        when(languageRepository.findByCode(GENERAL_CODE)).thenReturn(Optional.of(general));
+
+        // when
+        service.resolveLanguageIds(JAVA_ID);
+        service.resolveLanguageIds(JAVA_ID);
+
+        // then
+        verify(languageRepository, times(1)).findByCode(GENERAL_CODE);
     }
 
     private LanguageCreateRequest buildRequest(String name, String code) {

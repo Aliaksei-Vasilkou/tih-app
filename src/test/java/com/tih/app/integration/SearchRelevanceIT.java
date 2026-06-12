@@ -96,7 +96,7 @@ class SearchRelevanceIT {
 
         // when
         PageResponse<QuestionDto> results =
-                searchService.search("gc", null, null, PageRequest.of(0, 10));
+                searchService.search("gc", null, null, null, PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent()).isNotEmpty();
@@ -127,7 +127,7 @@ class SearchRelevanceIT {
 
         // when
         PageResponse<QuestionDto> results =
-                searchService.search("garbage collection", null, null, PageRequest.of(0, 10));
+                searchService.search("garbage collection", null, null, null, PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent()).hasSizeGreaterThanOrEqualTo(2);
@@ -170,7 +170,7 @@ class SearchRelevanceIT {
 
         // when
         PageResponse<QuestionDto> results =
-                searchService.search("vthread", null, null, PageRequest.of(0, 10));
+                searchService.search("vthread", null, null, null, PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent())
@@ -205,7 +205,7 @@ class SearchRelevanceIT {
 
         // when
         PageResponse<QuestionDto> results =
-                searchService.search("postgres", null, null, PageRequest.of(0, 10));
+                searchService.search("postgres", null, null, null, PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent())
@@ -253,7 +253,7 @@ class SearchRelevanceIT {
 
         // when
         PageResponse<QuestionDto> results =
-                searchService.search("gc", null, null, PageRequest.of(0, 10));
+                searchService.search("gc", null, null, null, PageRequest.of(0, 10));
 
         // then
         assertThat(results.getContent())

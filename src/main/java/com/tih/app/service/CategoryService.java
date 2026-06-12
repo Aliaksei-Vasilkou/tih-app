@@ -29,6 +29,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final LanguageRepository languageRepository;
     private final CategoryMapper categoryMapper;
+    private final LanguageService languageService;
 
     @Cacheable(value = "categories")
     public List<CategoryDto> findAll() {
@@ -37,7 +38,9 @@ public class CategoryService {
 
     @Cacheable(value = "categoriesByLanguage", key = "#languageId")
     public List<CategoryDto> findByLanguage(Long languageId) {
-        return categoryMapper.toDtoList(categoryRepository.findAllByLanguageId(languageId));
+        List<Long> languageIds = languageService.resolveLanguageIds(languageId);
+
+        return categoryMapper.toDtoList(categoryRepository.findAllByLanguageIdInOrderByPrimary(languageIds, languageId));
     }
 
     public CategoryDto findById(Long id) {

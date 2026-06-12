@@ -1,5 +1,21 @@
 package com.tih.app.service;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import com.tih.app.dto.LevelFilter;
 import com.tih.app.dto.PageResponse;
 import com.tih.app.dto.QuestionCreateRequest;
 import com.tih.app.dto.QuestionDto;
@@ -18,30 +34,15 @@ import com.tih.app.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional(readOnly = true)
 public class QuestionService {
 
+    // Passed to IN clauses when no level filter is active — non-empty to satisfy JPQL/SQL syntax.
+    private static final List<String> LEVEL_FILTER_SENTINEL = List.of("__NA__");
     private static final int MIN_FTS_QUERY_LENGTH = 3;
-
-    // ID of the "General" language — always included alongside any selected language filter.
-    private static final long GENERAL_LANGUAGE_ID = 1L;
 
     private final QuestionRepository questionRepository;
     private final LanguageRepository languageRepository;
@@ -50,23 +51,26 @@ public class QuestionService {
     private final QuestionMapper questionMapper;
     private final QuestionIndexService questionIndexService;
     private final QuestionSearchService questionSearchService;
+    private final LanguageService languageService;
+    private final TagResolver tagResolver;
 
     public PageResponse<QuestionDto> findAll(Long languageId, Long categoryId, int page, int size) {
+        return findAll(languageId, categoryId, null, page, size);
+    }
+
+    public PageResponse<QuestionDto> findAll(Long languageId, Long categoryId, LevelFilter levelFilter, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        List<Long> languageIds = resolveLanguageIds(languageId);
+        List<Long> languageIds = languageService.resolveLanguageIds(languageId);
+        String levelFlag = levelFlagParam(levelFilter);
+        Collection<String> includedLevels = includedLevelsParam(levelFilter);
+        Collection<String> allLevelTags = allLevelTagsParam(levelFilter);
         Page<Question> result;
 
-        if (languageIds != null && categoryId != null) {
-            result = questionRepository.findAllByLanguageIdInAndCategoryId(languageIds, categoryId, pageable);
-        }
-        else if (languageIds != null) {
-            result = questionRepository.findAllByLanguageIdIn(languageIds, pageable);
-        }
-        else if (categoryId != null) {
-            result = questionRepository.findAllByCategoryId(categoryId, pageable);
+        if (languageIds != null) {
+            result = questionRepository.findAllByLanguageIdsAndFilters(languageIds, categoryId, levelFlag, includedLevels, allLevelTags, pageable);
         }
         else {
-            result = questionRepository.findAll(pageable);
+            result = questionRepository.findAllByFilters(categoryId, levelFlag, includedLevels, allLevelTags, pageable);
         }
 
         return toPageResponse(result);
@@ -80,21 +84,23 @@ public class QuestionService {
     public PageResponse<QuestionDto> search(QuestionSearchRequest searchRequest) {
         String query = searchRequest.query();
         Pageable pageable = PageRequest.of(searchRequest.page(), searchRequest.size());
+        LevelFilter levelFilter = tagResolver.resolve(searchRequest.tag());
 
         if (!StringUtils.hasText(query)) {
             return findAll(searchRequest.languageId(), searchRequest.categoryId(),
-                    searchRequest.page(), searchRequest.size());
+                    levelFilter, searchRequest.page(), searchRequest.size());
         }
 
         try {
             return questionSearchService.search(
-                    query.trim(), searchRequest.languageId(), searchRequest.categoryId(), pageable);
+                    query.trim(), searchRequest.languageId(), searchRequest.categoryId(),
+                    levelFilter, pageable);
         }
         catch (Exception e) {
             log.warn("Elasticsearch search unavailable ({}), falling back to PostgreSQL FTS", e.getMessage());
 
             return fallbackSearch(query.trim(), searchRequest.languageId(),
-                    searchRequest.categoryId(), pageable);
+                    searchRequest.categoryId(), levelFilter, pageable);
         }
     }
 
@@ -143,31 +149,30 @@ public class QuestionService {
         log.info("Deleted question with id: {}", id);
     }
 
-    private List<Long> resolveLanguageIds(Long languageId) {
-        if (languageId == null) {
-            return null;
-        }
-
-        if (languageId == GENERAL_LANGUAGE_ID) {
-            return List.of(GENERAL_LANGUAGE_ID);
-        }
-
-        return List.of(languageId, GENERAL_LANGUAGE_ID);
-    }
-
-    private PageResponse<QuestionDto> fallbackSearch(String query, Long languageId, Long categoryId, Pageable pageable) {
-        List<Long> languageIds = resolveLanguageIds(languageId);
+    private PageResponse<QuestionDto> fallbackSearch(String query, Long languageId, Long categoryId, LevelFilter levelFilter, Pageable pageable) {
+        List<Long> languageIds = languageService.resolveLanguageIds(languageId);
+        String levelFlag = levelFlagParam(levelFilter);
+        Collection<String> includedLevels = includedLevelsParam(levelFilter);
+        Collection<String> allLevelTags = allLevelTagsParam(levelFilter);
         Page<Question> result;
 
         if (query.length() >= MIN_FTS_QUERY_LENGTH) {
-            result = languageIds != null
-                    ? questionRepository.searchByFullTextWithLanguageIds(query, languageIds, categoryId, pageable)
-                    : questionRepository.searchByFullText(query, null, categoryId, pageable);
+            if (languageIds != null) {
+                result = questionRepository.searchByFullTextWithLanguageIds(query, languageIds, categoryId, levelFlag, includedLevels, allLevelTags,
+                        pageable);
+            }
+            else {
+                result = questionRepository.searchByFullText(query, null, categoryId, levelFlag, includedLevels, allLevelTags, pageable);
+            }
         }
         else {
-            result = languageIds != null
-                    ? questionRepository.searchByKeywordWithLanguageIds(query, languageIds, categoryId, pageable)
-                    : questionRepository.searchByKeyword(query, null, categoryId, pageable);
+            if (languageIds != null) {
+                result = questionRepository.searchByKeywordWithLanguageIds(query, languageIds, categoryId, levelFlag, includedLevels, allLevelTags,
+                        pageable);
+            }
+            else {
+                result = questionRepository.searchByKeyword(query, null, categoryId, levelFlag, includedLevels, allLevelTags, pageable);
+            }
         }
 
         return toPageResponse(result);
@@ -195,5 +200,29 @@ public class QuestionService {
                 .totalPages(page.getTotalPages())
                 .last(page.isLast())
                 .build();
+    }
+
+    private String levelFlagParam(LevelFilter levelFilter) {
+        if (levelFilter == null) {
+            return null;
+        }
+
+        return "Y";
+    }
+
+    private Collection<String> includedLevelsParam(LevelFilter levelFilter) {
+        if (levelFilter == null) {
+            return LEVEL_FILTER_SENTINEL;
+        }
+
+        return levelFilter.includedLevels();
+    }
+
+    private Collection<String> allLevelTagsParam(LevelFilter levelFilter) {
+        if (levelFilter == null) {
+            return LEVEL_FILTER_SENTINEL;
+        }
+
+        return levelFilter.allLevelTags();
     }
 }

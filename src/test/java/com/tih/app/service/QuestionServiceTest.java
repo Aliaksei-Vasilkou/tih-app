@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import com.tih.app.dto.LevelFilter;
 import com.tih.app.dto.PageResponse;
 import com.tih.app.dto.QuestionCreateRequest;
 import com.tih.app.dto.QuestionDto;
@@ -49,6 +50,9 @@ class QuestionServiceTest {
     private static final String QUESTION_TEXT = "What is JVM?";
     private static final String SEARCH_QUERY_GC = "JVM garbage collection";
     private static final String SEARCH_QUERY_JVM = "JVM";
+    private static final String TAG_L2 = "L2";
+    private static final String TAG_NONEXISTENT = "NONEXISTENT";
+    private static final String QUERY_TRANSACTION = "transaction";
 
     @Mock
     private QuestionRepository questionRepository;
@@ -64,6 +68,10 @@ class QuestionServiceTest {
     private QuestionIndexService questionIndexService;
     @Mock
     private QuestionSearchService questionSearchService;
+    @Mock
+    private LanguageService languageService;
+    @Mock
+    private TagResolver tagResolver;
 
     @InjectMocks
     private QuestionService service;
@@ -73,7 +81,8 @@ class QuestionServiceTest {
         // given
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
-        when(questionRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class))).thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
         // when
@@ -81,7 +90,7 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).findAll(any(Pageable.class));
+        verify(questionRepository).findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class));
     }
 
     @Test
@@ -90,7 +99,9 @@ class QuestionServiceTest {
         List<Long> expectedIds = List.of(LANGUAGE_ID, GENERAL_LANGUAGE_ID);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
-        when(questionRepository.findAllByLanguageIdInAndCategoryId(eq(expectedIds), eq(CATEGORY_ID), any(Pageable.class))).thenReturn(page);
+        when(languageService.resolveLanguageIds(LANGUAGE_ID)).thenReturn(expectedIds);
+        when(questionRepository.findAllByLanguageIdsAndFilters(eq(expectedIds), eq(CATEGORY_ID), isNull(), any(), any(),
+                any(Pageable.class))).thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
         // when
@@ -98,7 +109,7 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).findAllByLanguageIdInAndCategoryId(eq(expectedIds), eq(CATEGORY_ID), any(Pageable.class));
+        verify(questionRepository).findAllByLanguageIdsAndFilters(eq(expectedIds), eq(CATEGORY_ID), isNull(), any(), any(), any(Pageable.class));
     }
 
     @Test
@@ -107,7 +118,9 @@ class QuestionServiceTest {
         List<Long> expectedIds = List.of(LANGUAGE_ID, GENERAL_LANGUAGE_ID);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
-        when(questionRepository.findAllByLanguageIdIn(eq(expectedIds), any(Pageable.class))).thenReturn(page);
+        when(languageService.resolveLanguageIds(LANGUAGE_ID)).thenReturn(expectedIds);
+        when(questionRepository.findAllByLanguageIdsAndFilters(eq(expectedIds), isNull(), isNull(), any(), any(), any(Pageable.class))).thenReturn(
+                page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
         // when
@@ -115,7 +128,7 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).findAllByLanguageIdIn(eq(expectedIds), any(Pageable.class));
+        verify(questionRepository).findAllByLanguageIdsAndFilters(eq(expectedIds), isNull(), isNull(), any(), any(), any(Pageable.class));
     }
 
     @Test
@@ -123,7 +136,8 @@ class QuestionServiceTest {
         // given
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
-        when(questionRepository.findAllByCategoryId(eq(CATEGORY_ID), any(Pageable.class))).thenReturn(page);
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.findAllByFilters(eq(CATEGORY_ID), isNull(), any(), any(), any(Pageable.class))).thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
         // when
@@ -131,7 +145,7 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).findAllByCategoryId(eq(CATEGORY_ID), any(Pageable.class));
+        verify(questionRepository).findAllByFilters(eq(CATEGORY_ID), isNull(), any(), any(), any(Pageable.class));
     }
 
     @Test
@@ -140,7 +154,9 @@ class QuestionServiceTest {
         List<Long> expectedIds = List.of(GENERAL_LANGUAGE_ID);
         Page<Question> page = new PageImpl<>(List.of());
 
-        when(questionRepository.findAllByLanguageIdIn(eq(expectedIds), any(Pageable.class))).thenReturn(page);
+        when(languageService.resolveLanguageIds(GENERAL_LANGUAGE_ID)).thenReturn(expectedIds);
+        when(questionRepository.findAllByLanguageIdsAndFilters(eq(expectedIds), isNull(), isNull(), any(), any(), any(Pageable.class))).thenReturn(
+                page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of());
 
         // when
@@ -148,7 +164,7 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).isEmpty();
-        verify(questionRepository).findAllByLanguageIdIn(eq(expectedIds), any(Pageable.class));
+        verify(questionRepository).findAllByLanguageIdsAndFilters(eq(expectedIds), isNull(), isNull(), any(), any(), any(Pageable.class));
     }
 
     @Test
@@ -181,47 +197,49 @@ class QuestionServiceTest {
     @Test
     void shouldDelegateToFindAll_whenSearchQueryIsBlank() {
         // given
-        QuestionSearchRequest request = new QuestionSearchRequest("  ", null, null, 0, 10);
+        QuestionSearchRequest request = new QuestionSearchRequest("  ", null, null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of());
 
-        when(questionRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class))).thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of());
 
         // when
         PageResponse<QuestionDto> result = service.search(request);
 
         // then
-        verify(questionSearchService, never()).search(any(), any(), any(), any());
+        verify(questionSearchService, never()).search(any(), any(), any(), any(), any());
         assertThat(result.getContent()).isEmpty();
     }
 
     @Test
     void shouldDelegateToFindAll_whenSearchQueryIsNull() {
         // given
-        QuestionSearchRequest request = new QuestionSearchRequest(null, null, null, 0, 10);
+        QuestionSearchRequest request = new QuestionSearchRequest(null, null, null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of());
 
-        when(questionRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class))).thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of());
 
         // when
         PageResponse<QuestionDto> result = service.search(request);
 
         // then
-        verify(questionSearchService, never()).search(any(), any(), any(), any());
+        verify(questionSearchService, never()).search(any(), any(), any(), any(), any());
         assertThat(result.getContent()).isEmpty();
     }
 
     @Test
     void shouldDelegateToElasticsearch_whenQueryIsPresent() {
         // given
-        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_GC, null, null, 0, 10);
+        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_GC, null, null, null, 0, 10);
         PageResponse<QuestionDto> esResponse = PageResponse.<QuestionDto>builder()
                 .content(List.of(buildQuestionDto()))
                 .totalElements(1)
                 .build();
 
-        when(questionSearchService.search(eq(SEARCH_QUERY_GC), any(), any(), any()))
+        when(questionSearchService.search(eq(SEARCH_QUERY_GC), any(), any(), any(), any()))
                 .thenReturn(esResponse);
 
         // when
@@ -229,19 +247,20 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionSearchService).search(eq(SEARCH_QUERY_GC), any(), any(), any());
-        verify(questionRepository, never()).searchByFullText(any(), any(), any(), any());
+        verify(questionSearchService).search(eq(SEARCH_QUERY_GC), any(), any(), any(), any());
+        verify(questionRepository, never()).searchByFullText(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void shouldFallBackToPostgresFTS_whenElasticsearchThrowsException() {
         // given — query >= 3 chars triggers the FTS path
-        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_JVM, null, null, 0, 10);
+        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_JVM, null, null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
-        when(questionSearchService.search(any(), any(), any(), any()))
+        when(questionSearchService.search(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("ES unavailable"));
-        when(questionRepository.searchByFullText(eq(SEARCH_QUERY_JVM), isNull(), isNull(), any(Pageable.class)))
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.searchByFullText(eq(SEARCH_QUERY_JVM), isNull(), isNull(), isNull(), any(), any(), any(Pageable.class)))
                 .thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
@@ -250,18 +269,19 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).searchByFullText(eq(SEARCH_QUERY_JVM), isNull(), isNull(), any(Pageable.class));
+        verify(questionRepository).searchByFullText(eq(SEARCH_QUERY_JVM), isNull(), isNull(), isNull(), any(), any(), any(Pageable.class));
     }
 
     @Test
     void shouldUseFallbackKeywordSearch_whenQueryIsShorterThanMinFtsLength() {
         // given — query < 3 chars falls back to keyword search
-        QuestionSearchRequest request = new QuestionSearchRequest("GC", null, null, 0, 10);
+        QuestionSearchRequest request = new QuestionSearchRequest("GC", null, null, null, 0, 10);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
-        when(questionSearchService.search(any(), any(), any(), any()))
+        when(questionSearchService.search(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("ES unavailable"));
-        when(questionRepository.searchByKeyword(eq("GC"), isNull(), isNull(), any(Pageable.class)))
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.searchByKeyword(eq("GC"), isNull(), isNull(), isNull(), any(), any(), any(Pageable.class)))
                 .thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
@@ -270,20 +290,22 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).searchByKeyword(eq("GC"), isNull(), isNull(), any(Pageable.class));
-        verify(questionRepository, never()).searchByFullText(any(), any(), any(), any());
+        verify(questionRepository).searchByKeyword(eq("GC"), isNull(), isNull(), isNull(), any(), any(), any(Pageable.class));
+        verify(questionRepository, never()).searchByFullText(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void shouldUseFallbackWithLanguageIds_whenLanguageFilterSetAndEsFails() {
         // given
-        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_JVM, LANGUAGE_ID, null, 0, 10);
+        QuestionSearchRequest request = new QuestionSearchRequest(SEARCH_QUERY_JVM, LANGUAGE_ID, null, null, 0, 10);
         List<Long> expectedIds = List.of(LANGUAGE_ID, GENERAL_LANGUAGE_ID);
         Page<Question> page = new PageImpl<>(List.of(buildQuestion()));
 
-        when(questionSearchService.search(any(), any(), any(), any()))
+        when(questionSearchService.search(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("ES unavailable"));
-        when(questionRepository.searchByFullTextWithLanguageIds(eq(SEARCH_QUERY_JVM), eq(expectedIds), isNull(), any(Pageable.class)))
+        when(languageService.resolveLanguageIds(LANGUAGE_ID)).thenReturn(expectedIds);
+        when(questionRepository.searchByFullTextWithLanguageIds(eq(SEARCH_QUERY_JVM), eq(expectedIds), isNull(), isNull(), any(), any(),
+                any(Pageable.class)))
                 .thenReturn(page);
         when(questionMapper.toDtoList(any())).thenReturn(List.of(buildQuestionDto()));
 
@@ -292,7 +314,8 @@ class QuestionServiceTest {
 
         // then
         assertThat(result.getContent()).hasSize(1);
-        verify(questionRepository).searchByFullTextWithLanguageIds(eq(SEARCH_QUERY_JVM), eq(expectedIds), isNull(), any(Pageable.class));
+        verify(questionRepository).searchByFullTextWithLanguageIds(eq(SEARCH_QUERY_JVM), eq(expectedIds), isNull(), isNull(), any(), any(),
+                any(Pageable.class));
     }
 
     @Test
@@ -494,6 +517,96 @@ class QuestionServiceTest {
         verify(questionIndexService, never()).delete(any());
     }
 
+    @Test
+    void shouldDelegateToFindAllWithNoFilters_whenSearchRequestHasNoQueryAndNoFilters() {
+        // given
+        QuestionSearchRequest request = new QuestionSearchRequest(null, null, null, null, 0, 20);
+        Page<Question> emptyPage = new PageImpl<>(List.of());
+
+        when(tagResolver.resolve(isNull())).thenReturn(null);
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class))).thenReturn(emptyPage);
+        when(questionMapper.toDtoList(any())).thenReturn(List.of());
+
+        // when
+        PageResponse<QuestionDto> result = service.search(request);
+
+        // then
+        assertThat(result.getContent()).isEmpty();
+        verify(languageService).resolveLanguageIds(isNull());
+        verify(questionRepository).findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class));
+    }
+
+    @Test
+    void shouldPassLevelFilterToFindAll_whenQueryIsAbsentButTagL2AndLanguageAreProvided() {
+        // given
+        List<String> l2Included = List.of("L1", "L2");
+        List<String> allLevels = List.of("L1", "L2", "L3", "L4");
+        LevelFilter l2Filter = new LevelFilter(l2Included, allLevels);
+        List<Long> resolvedIds = List.of(LANGUAGE_ID, GENERAL_LANGUAGE_ID);
+        QuestionSearchRequest request = new QuestionSearchRequest(null, LANGUAGE_ID, null, TAG_L2, 0, 20);
+        Page<Question> emptyPage = new PageImpl<>(List.of());
+
+        when(tagResolver.resolve(TAG_L2)).thenReturn(l2Filter);
+        when(languageService.resolveLanguageIds(LANGUAGE_ID)).thenReturn(resolvedIds);
+        when(questionRepository.findAllByLanguageIdsAndFilters(
+                eq(resolvedIds), isNull(), eq("Y"), eq(l2Included), eq(allLevels), any(Pageable.class))).thenReturn(emptyPage);
+        when(questionMapper.toDtoList(any())).thenReturn(List.of());
+
+        // when
+        service.search(request);
+
+        // then
+        verify(tagResolver).resolve(TAG_L2);
+        verify(questionRepository).findAllByLanguageIdsAndFilters(
+                eq(resolvedIds), isNull(), eq("Y"), eq(l2Included), eq(allLevels), any(Pageable.class));
+    }
+
+    @Test
+    void shouldPassLevelFilterToElasticsearchSearch_whenQueryAndTagL2AreProvided() {
+        // given
+        List<String> l2Included = List.of("L1", "L2");
+        List<String> allLevels = List.of("L1", "L2", "L3", "L4");
+        LevelFilter l2Filter = new LevelFilter(l2Included, allLevels);
+        QuestionSearchRequest request = new QuestionSearchRequest(QUERY_TRANSACTION, LANGUAGE_ID, null, TAG_L2, 0, 20);
+        PageResponse<QuestionDto> esResponse = buildEmptyPageResponse();
+
+        when(tagResolver.resolve(TAG_L2)).thenReturn(l2Filter);
+        when(questionSearchService.search(
+                eq(QUERY_TRANSACTION), eq(LANGUAGE_ID), isNull(), eq(l2Filter), any(Pageable.class)))
+                .thenReturn(esResponse);
+
+        // when
+        PageResponse<QuestionDto> result = service.search(request);
+
+        // then
+        assertThat(result).isNotNull();
+        verify(tagResolver).resolve(TAG_L2);
+        verify(questionSearchService).search(
+                eq(QUERY_TRANSACTION), eq(LANGUAGE_ID), isNull(), eq(l2Filter), any(Pageable.class));
+    }
+
+    @Test
+    void shouldReturnUnfilteredResults_whenTagIsNotALevelTag() {
+        // given
+        QuestionSearchRequest request = new QuestionSearchRequest(null, null, null, TAG_NONEXISTENT, 0, 20);
+        Page<Question> emptyPage = new PageImpl<>(List.of());
+
+        when(tagResolver.resolve(TAG_NONEXISTENT)).thenReturn(null);
+        when(languageService.resolveLanguageIds(isNull())).thenReturn(null);
+        when(questionRepository.findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class)))
+                .thenReturn(emptyPage);
+        when(questionMapper.toDtoList(any())).thenReturn(List.of());
+
+        // when
+        PageResponse<QuestionDto> result = service.search(request);
+
+        // then
+        assertThat(result.getContent()).isEmpty();
+        verify(tagResolver).resolve(TAG_NONEXISTENT);
+        verify(questionRepository).findAllByFilters(isNull(), isNull(), any(), any(), any(Pageable.class));
+    }
+
     private Question buildQuestion() {
         return Question.builder()
                 .id(QuestionServiceTest.QUESTION_ID)
@@ -533,6 +646,17 @@ class QuestionServiceTest {
                 .languageId(LANGUAGE_ID)
                 .categoryId(CATEGORY_ID)
                 .tagIds(tagIds)
+                .build();
+    }
+
+    private PageResponse<QuestionDto> buildEmptyPageResponse() {
+        return PageResponse.<QuestionDto>builder()
+                .content(List.of())
+                .page(0)
+                .size(20)
+                .totalElements(0)
+                .totalPages(0)
+                .last(true)
                 .build();
     }
 }

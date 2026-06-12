@@ -10,6 +10,7 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 
+import com.tih.app.dto.LevelFilter;
 import com.tih.app.dto.PageResponse;
 import com.tih.app.dto.QuestionDto;
 import com.tih.app.model.QuestionDocument;
@@ -62,16 +63,15 @@ import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 @Slf4j
 public class QuestionSearchService {
 
-    //ID of the "General" language — always included alongside any selected language filter.
-    private static final long GENERAL_LANGUAGE_ID = 1L;
     private static final String QUESTION_TEXT = "questionText";
     private static final String ANSWER_CONTENT = "answerContent";
 
     private final ElasticsearchOperations elasticsearchOperations;
+    private final LanguageService languageService;
 
-    public PageResponse<QuestionDto> search(String queryText, Long languageId, Long categoryId, Pageable pageable) {
+    public PageResponse<QuestionDto> search(String queryText, Long languageId, Long categoryId, LevelFilter levelFilter, Pageable pageable) {
         NativeQuery nativeQuery = NativeQuery.builder()
-                .withQuery(buildQuery(queryText, languageId, categoryId))
+                .withQuery(buildQuery(queryText, languageId, categoryId, levelFilter))
                 .withPageable(PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()))
                 .withSort(Sort.by(Sort.Order.desc("_score")))
                 .withTrackScores(true)
@@ -99,7 +99,7 @@ public class QuestionSearchService {
                 .build();
     }
 
-    private Query buildQuery(String text, Long languageId, Long categoryId) {
+    private Query buildQuery(String text, Long languageId, Long categoryId, LevelFilter levelFilter) {
         return Query.of(q -> q
                 .bool(b -> {
 
@@ -181,16 +181,36 @@ public class QuestionSearchService {
 
                     // Zero-score filters
                     if (languageId != null) {
-                        List<FieldValue> languageValues = languageId == GENERAL_LANGUAGE_ID
-                                ? List.of(FieldValue.of(languageId))
-                                : List.of(FieldValue.of(languageId), FieldValue.of(GENERAL_LANGUAGE_ID));
+                        List<Long> languageIds = languageService.resolveLanguageIds(languageId);
+                        List<FieldValue> languageValues = languageIds.stream()
+                                .map(FieldValue::of)
+                                .toList();
                         b.filter(f -> f.terms(t -> t
                                 .field("languageId")
                                 .terms(tv -> tv.value(languageValues))));
                     }
+
                     if (categoryId != null) {
                         b.filter(f -> f.term(t -> t
                                 .field("categoryId").value(FieldValue.of(categoryId))));
+                    }
+
+                    if (levelFilter != null) {
+                        List<FieldValue> includedValues = levelFilter.includedLevels().stream()
+                                .map(FieldValue::of)
+                                .toList();
+                        List<FieldValue> allLevelValues = levelFilter.allLevelTags().stream()
+                                .map(FieldValue::of)
+                                .toList();
+                        b.filter(f -> f.bool(bf -> bf
+                                .should(s -> s.terms(t -> t
+                                        .field("tags")
+                                        .terms(tv -> tv.value(includedValues))))
+                                .should(s -> s.bool(ib -> ib
+                                        .mustNot(mn -> mn.terms(t -> t
+                                                .field("tags")
+                                                .terms(tv -> tv.value(allLevelValues))))))
+                                .minimumShouldMatch("1")));
                     }
 
                     return b;
