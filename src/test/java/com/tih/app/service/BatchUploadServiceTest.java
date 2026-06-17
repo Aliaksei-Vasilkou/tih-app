@@ -26,8 +26,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tih.app.dto.BatchAnalyseResponse;
+import com.tih.app.dto.BatchCommitRequest;
 import com.tih.app.dto.BatchUploadResponse;
+import com.tih.app.dto.ConflictResolution;
+import com.tih.app.dto.QuestionDto;
 import com.tih.app.dto.QuestionTransferItem;
+import com.tih.app.mapper.QuestionMapper;
 import com.tih.app.model.Category;
 import com.tih.app.model.Language;
 import com.tih.app.model.Question;
@@ -68,6 +73,8 @@ class BatchUploadServiceTest {
     private Validator validator;
     @Mock
     private QuestionIndexService questionIndexService;
+    @Mock
+    private QuestionMapper questionMapper;
 
     @InjectMocks
     private BatchUploadService service;
@@ -88,6 +95,7 @@ class BatchUploadServiceTest {
         // then
         assertThat(result.getTotalItems()).isZero();
         assertThat(result.getSuccessCount()).isZero();
+        assertThat(result.getUpdatedCount()).isZero();
         assertThat(result.getFailureCount()).isZero();
         assertThat(result.getErrors()).hasSize(1)
                 .first().asString().contains("Failed to parse file");
@@ -118,6 +126,7 @@ class BatchUploadServiceTest {
         assertThat(result.getTotalItems()).isEqualTo(1);
         assertThat(result.getFailureCount()).isEqualTo(1);
         assertThat(result.getSuccessCount()).isZero();
+        assertThat(result.getUpdatedCount()).isZero();
         assertThat(result.getErrors()).hasSize(1)
                 .first().asString().contains(QUESTION_TEXT_ERROR);
         verify(questionRepository, never()).save(any());
@@ -145,6 +154,7 @@ class BatchUploadServiceTest {
         assertThat(result.getTotalItems()).isEqualTo(1);
         assertThat(result.getSkippedCount()).isEqualTo(1);
         assertThat(result.getSuccessCount()).isZero();
+        assertThat(result.getUpdatedCount()).isZero();
         assertThat(result.getSkipped()).hasSize(1)
                 .first().asString().contains(existingId.toString());
         verify(questionRepository, never()).save(any());
@@ -223,6 +233,7 @@ class BatchUploadServiceTest {
         assertThat(result.getTotalItems()).isEqualTo(1);
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getFailureCount()).isZero();
+        assertThat(result.getUpdatedCount()).isZero();
         assertThat(result.getSkippedCount()).isZero();
         verify(questionRepository).save(any(Question.class));
         verify(questionIndexService).index(saved);
@@ -329,6 +340,215 @@ class BatchUploadServiceTest {
         assertThat(result.getSuccessCount()).isEqualTo(1);
         assertThat(result.getSkippedCount()).isEqualTo(1);
         assertThat(result.getFailureCount()).isEqualTo(1);
+        assertThat(result.getUpdatedCount()).isZero();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void analyseUpload_shouldSplitNewItemsAndDuplicates_whenExtIdExists() throws Exception {
+        // given
+        UUID duplicateExtId = UUID.randomUUID();
+        QuestionTransferItem newItem = buildItem(null, QUESTION_TEXT, LANGUAGE_CODE_JAVA, CORE_CATEGORY);
+        QuestionTransferItem duplicateItem = buildItem(duplicateExtId, "What is inheritance?", LANGUAGE_CODE_JAVA, CORE_CATEGORY);
+        MultipartFile file = mock(MultipartFile.class);
+        Language language = buildLanguage();
+        Category category = buildCategory(language);
+        Question existingQuestion = Question.builder()
+                .id(21L)
+                .externalId(duplicateExtId)
+                .questionText("Existing")
+                .build();
+
+        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        doReturn(List.of(newItem, duplicateItem))
+                .when(objectMapper).readValue(any(java.io.InputStream.class), any(TypeReference.class));
+        when(validator.validate(any())).thenReturn(Set.of());
+        when(languageRepository.findByCode(LANGUAGE_CODE_JAVA)).thenReturn(Optional.of(language));
+        when(categoryRepository.findByNameAndLanguageId(CORE_CATEGORY, LANGUAGE_ID)).thenReturn(Optional.of(category));
+        when(questionRepository.findByExternalId(duplicateExtId)).thenReturn(Optional.of(existingQuestion));
+        when(questionMapper.toDto(existingQuestion)).thenReturn(QuestionDto.builder().id(21L).questionText("Existing").build());
+
+        // when
+        BatchAnalyseResponse response = service.analyseUpload(file);
+
+        // then
+        assertThat(response.newItems()).hasSize(1);
+        assertThat(response.duplicates()).hasSize(1);
+        assertThat(response.duplicates().getFirst().extId()).isEqualTo(duplicateExtId);
+        verify(questionRepository, never()).save(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void analyseUpload_shouldThrowIllegalArgument_whenValidationFails() throws Exception {
+        // given
+        QuestionTransferItem invalidItem = QuestionTransferItem.builder()
+                .question(StringUtils.EMPTY)
+                .language(LANGUAGE_CODE_JAVA)
+                .category(CORE_CATEGORY)
+                .build();
+        MultipartFile file = mock(MultipartFile.class);
+        ConstraintViolation<QuestionTransferItem> violation = mock(ConstraintViolation.class);
+
+        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        doReturn(List.of(invalidItem))
+                .when(objectMapper).readValue(any(java.io.InputStream.class), any(TypeReference.class));
+        when(violation.getMessage()).thenReturn(QUESTION_TEXT_ERROR);
+        when(validator.validate(invalidItem)).thenReturn(Set.of(violation));
+
+        // when
+        Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(() -> service.analyseUpload(file));
+
+        // then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(QUESTION_TEXT_ERROR);
+    }
+
+    @Test
+    void commitUpload_shouldInsertNewAndUpdateAcceptedAndSkipSkipped() {
+        // given
+        UUID acceptedExtId = UUID.randomUUID();
+        UUID skippedExtId = UUID.randomUUID();
+        Language language = buildLanguage();
+        Category category = buildCategory(language);
+        QuestionTransferItem newItem = buildItem(null, QUESTION_TEXT, LANGUAGE_CODE_JAVA, CORE_CATEGORY);
+        QuestionTransferItem incomingDuplicate = buildItem(acceptedExtId, "Updated question", LANGUAGE_CODE_JAVA, CORE_CATEGORY);
+        Question existing = Question.builder()
+                .id(7L)
+                .externalId(acceptedExtId)
+                .questionText("Old question")
+                .language(language)
+                .category(category)
+                .build();
+        BatchCommitRequest request = new BatchCommitRequest(
+                List.of(newItem, incomingDuplicate),
+                List.of(
+                        new ConflictResolution(acceptedExtId, "accept"),
+                        new ConflictResolution(skippedExtId, "skip")));
+
+        when(validator.validate(any())).thenReturn(Set.of());
+        when(languageRepository.findByCode(LANGUAGE_CODE_JAVA)).thenReturn(Optional.of(language));
+        when(categoryRepository.findByNameAndLanguageId(CORE_CATEGORY, LANGUAGE_ID)).thenReturn(Optional.of(category));
+        when(questionRepository.save(any(Question.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(questionRepository.findByExternalId(acceptedExtId)).thenReturn(Optional.of(existing));
+
+        // when
+        BatchUploadResponse response = service.commitUpload(request);
+
+        // then
+        assertThat(response.getTotalItems()).isEqualTo(3);
+        assertThat(response.getSuccessCount()).isEqualTo(1);
+        assertThat(response.getUpdatedCount()).isEqualTo(1);
+        assertThat(response.getSkippedCount()).isEqualTo(1);
+        assertThat(response.getFailureCount()).isZero();
+        assertThat(response.getSkipped()).containsExactly(skippedExtId.toString());
+    }
+
+    @Test
+    void commitUpload_shouldThrowIllegalArgument_whenRequestHasNoWork() {
+        // given
+        BatchCommitRequest request = new BatchCommitRequest(List.of(), List.of());
+
+        // when
+        Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(() -> service.commitUpload(request));
+
+        // then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("At least one of newItems or resolutions must be provided");
+    }
+
+    @Test
+    void commitUpload_shouldThrowIllegalArgument_whenRequestIsNull() {
+        // given
+        BatchCommitRequest request = null;
+
+        // when
+        Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(() -> service.commitUpload(request));
+
+        // then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Request body is required");
+    }
+
+    @Test
+    void commitUpload_shouldThrowIllegalArgument_whenResolutionActionIsInvalid() {
+        // given
+        UUID duplicateExtId = UUID.randomUUID();
+        BatchCommitRequest request = new BatchCommitRequest(
+                List.of(),
+                List.of(new ConflictResolution(duplicateExtId, "overwrite")));
+
+        // when
+        Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(() -> service.commitUpload(request));
+
+        // then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("action must be 'accept' or 'skip'");
+    }
+
+    @Test
+    void commitUpload_shouldThrowIllegalArgument_whenAcceptedResolutionHasNoIncomingPayload() {
+        // given
+        UUID duplicateExtId = UUID.randomUUID();
+        BatchCommitRequest request = new BatchCommitRequest(
+                List.of(),
+                List.of(new ConflictResolution(duplicateExtId, "accept")));
+
+        // when
+        Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(() -> service.commitUpload(request));
+
+        // then
+        assertThat(thrown)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("requires incoming item in newItems");
+    }
+
+    @Test
+    void commitUpload_shouldCountFailure_whenAcceptedResolutionHasNoExistingQuestion() {
+        // given
+        UUID duplicateExtId = UUID.randomUUID();
+        QuestionTransferItem incomingDuplicate = buildItem(duplicateExtId, QUESTION_TEXT, LANGUAGE_CODE_JAVA, CORE_CATEGORY);
+        BatchCommitRequest request = new BatchCommitRequest(
+                List.of(incomingDuplicate),
+                List.of(new ConflictResolution(duplicateExtId, "accept")));
+
+        when(questionRepository.findByExternalId(duplicateExtId)).thenReturn(Optional.empty());
+
+        // when
+        BatchUploadResponse response = service.commitUpload(request);
+
+        // then
+        assertThat(response.getTotalItems()).isEqualTo(1);
+        assertThat(response.getFailureCount()).isEqualTo(1);
+        assertThat(response.getUpdatedCount()).isZero();
+        assertThat(response.getErrors()).hasSize(1)
+                .first().asString().contains("Existing question not found");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void analyseUpload_shouldThrowUnknownLanguageException_whenLanguageIsUnknown() throws Exception {
+        // given
+        QuestionTransferItem item = buildItem(null, QUESTION_TEXT, UNKNOWN_LANG_ERROR, CORE_CATEGORY);
+        MultipartFile file = mock(MultipartFile.class);
+
+        when(file.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        doReturn(List.of(item))
+                .when(objectMapper).readValue(any(java.io.InputStream.class), any(TypeReference.class));
+        when(validator.validate(item)).thenReturn(Set.of());
+        when(languageRepository.findByCode(UNKNOWN_LANG_ERROR)).thenReturn(Optional.empty());
+
+        // when
+        Throwable thrown = org.assertj.core.api.Assertions.catchThrowable(() -> service.analyseUpload(file));
+
+        // then
+        assertThat(thrown)
+                .isInstanceOf(com.tih.app.exception.UnknownLanguageException.class)
+                .hasMessageContaining(UNKNOWN_LANG_ERROR);
     }
 
     @Test

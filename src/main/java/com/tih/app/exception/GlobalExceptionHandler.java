@@ -1,6 +1,6 @@
 package com.tih.app.exception;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,9 +9,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.List;
-
 import com.tih.app.util.ErrorCode;
+
+import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @Slf4j
@@ -57,6 +57,32 @@ public class GlobalExceptionHandler {
                 .message("Validation failed")
                 .source(SOURCE)
                 .errors(validationErrors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(UnknownLanguageException.class)
+    public ResponseEntity<ErrorResponse> handleUnknownLanguage(UnknownLanguageException ex) {
+        log.warn("Unknown language: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+                .code(ErrorCode.UNKNOWN_LANGUAGE)
+                .message(ex.getMessage())
+                .source(SOURCE)
+                .errors(List.of(new ValidationError(ErrorCode.UNKNOWN_LANGUAGE, "language", ex.getMessage())))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Invalid request: {}", ex.getMessage());
+        ErrorResponse error = ErrorResponse.builder()
+                .code(ErrorCode.INVALID_REQUEST)
+                .message(ex.getMessage())
+                .source(SOURCE)
+                .errors(List.of(new ValidationError(ErrorCode.INVALID_REQUEST, "request", ex.getMessage())))
                 .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);

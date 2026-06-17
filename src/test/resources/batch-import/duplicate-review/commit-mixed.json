@@ -1,0 +1,32 @@
+{
+  "newItems": [
+    {
+      "question": "What is encapsulation?",
+      "answer": "## Encapsulation",
+      "language": "java",
+      "category": "Core",
+      "tags": ["L1", "OOP"]
+    }
+  ],
+  "duplicates": [
+    {
+      "extId": "550e8400-e29b-41d4-a716-446655440001",
+      "existing": {
+        "id": 42,
+        "questionText": "What is inheritance?"
+      },
+      "incoming": {
+        "extId": "550e8400-e29b-41d4-a716-446655440001",
+        "question": "What is inheritance?",
+        "answer": "## New Inheritance",
+        "language": "java",
+        "category": "Core",
+        "tags": ["L1", "L2"]
+      }
+    }
+  ],
+  "resolutions": [
+    { "extId": "550e8400-e29b-41d4-a716-446655440001", "action": "accept" },
+    { "extId": "550e8400-e29b-41d4-a716-446655440002", "action": "skip" }
+  ]
+}
